@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/index.css';
-import AppFigma from './AppFigma.jsx';
+import App from './App.jsx';
 
-createRoot(document.getElementById('root')).render(<AppFigma/>);
+createRoot(document.getElementById('root')).render(<App/>);

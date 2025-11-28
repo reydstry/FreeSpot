@@ -1,5 +1,6 @@
 // API Base URL Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+export const API_BASE_URL =
+	import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ========================================
 // FLOORS API
@@ -56,8 +57,21 @@ export const tablesAPI = {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(tableData),
 		});
-		if (!response.ok) throw new Error('Failed to create table');
-		return response.json();
+
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			console.error('❌ API: Create table failed:', {
+				status: response.status,
+				detail: errorData.detail,
+				tableData: tableData,
+			});
+			throw new Error(
+				errorData.detail || `Failed to create table (${response.status})`
+			);
+		}
+
+		const result = await response.json();
+		return result;
 	},
 
 	// Update table
@@ -160,9 +174,10 @@ export const detectionAPI = {
 
 	// WebSocket connection for real-time updates
 	connectWebSocket(onMessage, floorId = null) {
+		const base = API_BASE_URL.replace('http', 'ws');
 		const wsUrl = floorId
-			? `ws://localhost:8000/ws/detection?floor_id=${floorId}`
-			: `ws://localhost:8000/ws/detection`;
+			? `${base}/ws/detect?floor_id=${floorId}`
+			: `${base}/ws/detect`;
 
 		const ws = new WebSocket(wsUrl);
 

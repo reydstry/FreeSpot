@@ -1,35 +1,54 @@
 import React, { useState, useRef, useEffect } from 'react';
-import FloorCanvas from '../components/FloorCanvas';
-import TableSidebar from '../components/TableSidebar';
-import AddTableModal from '../components/AddTableModal';
-import EditTableModal from '../components/EditTableModal';
-import FilterModal from '../components/FilterModal';
-import EditFloorModal from '../components/EditFloorModal';
-import ToolbarActions from '../components/ToolbarActions';
+import FloorCanvas from '../components/EditLayout/FloorCanvas';
+import TableSidebar from '../components/EditLayout/TableSidebar';
+import AddTableModal from '../components/PopUp/AddTablePopUp';
+import EditTableModal from '../components/PopUp/EditTablePopUp';
+import FilterModal from '../components/PopUp/FilterPopUp';
+import EditFloorModal from '../components/PopUp/EditFloorPopUp';
+import ToolbarActions from '../components/EditLayout/ToolbarActions';
 import { useCanvasInteractions } from '../hooks/useCanvasInteractions';
 import { useTableManagement } from '../hooks/useTableManagement';
 
 const EditLayoutPage = ({
 	tables,
+	floors,
 	onAddTable,
 	onUpdateTable,
 	onDeleteTable,
+	onAddFloor,
+	onDeleteFloor,
 }) => {
 	const [localTables, setLocalTables] = useState(tables);
-	const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 720 });
+	const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 680 });
 	const [videoFrame, setVideoFrame] = useState(null);
 	const [uploadedFileName, setUploadedFileName] = useState('');
 	const [showEditFloorModal, setShowEditFloorModal] = useState(false);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showFilterPopup, setShowFilterPopup] = useState(false);
 	const [filterCapacity, setFilterCapacity] = useState('all');
-	const [filterFloor, setFilterFloor] = useState('1');
+
+	// Set default filterFloor based on first available floor
+	const [filterFloor, setFilterFloor] = useState(() => {
+		const floorNumbers =
+			floors && floors.length > 0
+				? floors.map((f) => f.number).sort((a, b) => a - b)
+				: [];
+		return floorNumbers.length > 0 ? floorNumbers[0].toString() : '1';
+	});
+
 	const [sortOrder, setSortOrder] = useState('none');
 	// Temporary filter states for modal
 	const [tempFilterCapacity, setTempFilterCapacity] = useState('all');
-	const [tempFilterFloor, setTempFilterFloor] = useState('1');
+	const [tempFilterFloor, setTempFilterFloor] = useState(() => {
+		const floorNumbers =
+			floors && floors.length > 0
+				? floors.map((f) => f.number).sort((a, b) => a - b)
+				: [];
+		return floorNumbers.length > 0 ? floorNumbers[0].toString() : '1';
+	});
 	const [tempSortOrder, setTempSortOrder] = useState('none');
 	const canvasRef = useRef(null);
+	const [isFullscreen, setIsFullscreen] = useState(false);
 
 	// First filter by main floor dropdown for canvas display
 	const filteredTables = localTables.filter(
@@ -53,7 +72,8 @@ const EditLayoutPage = ({
 		localTables,
 		setLocalTables,
 		onAddTable,
-		onUpdateTable
+		onUpdateTable,
+		floors
 	);
 
 	// Table management hook
@@ -78,7 +98,6 @@ const EditLayoutPage = ({
 		handleEditTable,
 		handleConfirmEditTable,
 		handleDeleteTable,
-		floors,
 	} = useTableManagement(
 		localTables,
 		setLocalTables,
@@ -87,13 +106,19 @@ const EditLayoutPage = ({
 		onDeleteTable,
 		selectedTable,
 		setSelectedTable,
-		filterFloor,
-		setFilterFloor
+		setFilterFloor,
+		floors
 	);
 
 	useEffect(() => {
-		setCanvasSize({ width: 1280, height: 720 });
+		setCanvasSize({ width: 1280, height: 680 });
 	}, [filterFloor]);
+
+	// Extract floor numbers from floors array for compatibility with existing components
+	const floorNumbers =
+		floors && floors.length > 0
+			? floors.map((f) => (typeof f === 'object' ? f.number : f))
+			: [];
 
 	// Only sync when table count changes (add/delete), not on updates
 	useEffect(() => {
@@ -209,42 +234,66 @@ const EditLayoutPage = ({
 		}
 	};
 
-	const handleAddFloor = (floorNum) => {
-		// Add a placeholder table for the new floor
-		const newTable = {
-			name: `Meja 1`,
-			status: 'tersedia',
-			capacity: 4,
-			floor: floorNum,
-			coords: [100, 100, 200, 200],
-		};
+	const handleAddFloor = async (floorNum) => {
+		try {
+			// Create floor di DB
+			const floorData = { name: `Lantai ${floorNum}`, number: floorNum };
+			const createdFloor = await onAddFloor(floorData);
 
-		const addedTable = onAddTable(newTable);
-		setLocalTables((prev) => [...prev, addedTable]);
-		setFilterFloor(floorNum.toString());
+			console.log('✅ Floor created:', createdFloor);
 
-		alert(`✅ Lantai ${floorNum} berhasil ditambahkan!`);
+			setFilterFloor(floorNum.toString());
+			alert(
+				`✅ Lantai ${floorNum} berhasil ditambahkan!\n⚠️ Lantai masih kosong. Silakan tambahkan meja terlebih dahulu.`
+			);
+		} catch (error) {
+			console.error('❌ Failed to add floor:', error);
+			alert(`❌ Gagal menambah lantai ${floorNum}: ${error.message}`);
+		}
 	};
 
-	const handleDeleteFloor = (floorNum) => {
-		// Delete all tables on this floor
-		const tablesToDelete = localTables.filter((t) => t.floor === floorNum);
-		tablesToDelete.forEach((table) => {
-			onDeleteTable(table.id);
-		});
-		setLocalTables((prev) => prev.filter((t) => t.floor !== floorNum));
-
-		// Switch to another floor if current floor is deleted
-		if (parseInt(filterFloor) === floorNum) {
-			const remainingFloors = floors.filter((f) => f !== floorNum);
-			if (remainingFloors.length > 0) {
-				setFilterFloor(remainingFloors[0].toString());
-			} else {
-				setFilterFloor('1');
+	const handleDeleteFloor = async (floorNum) => {
+		try {
+			// Get floor object from floors array
+			const floorObj = floors.find((f) => f.number === floorNum);
+			if (!floorObj) {
+				alert(`❌ Lantai ${floorNum} tidak ditemukan`);
+				return;
 			}
-		}
 
-		alert(`✅ Lantai ${floorNum} berhasil dihapus!`);
+			// Validasi: minimal harus ada 1 floor
+			if (floors.length <= 1) {
+				alert('❌ Tidak bisa menghapus! Minimal harus ada 1 lantai.');
+				return;
+			}
+
+			// Delete all tables on this floor
+			const tablesToDelete = localTables.filter((t) => t.floor === floorNum);
+			for (const table of tablesToDelete) {
+				await onDeleteTable(table.id);
+			}
+			setLocalTables((prev) => prev.filter((t) => t.floor !== floorNum));
+
+			// Delete floor dari DB
+			await onDeleteFloor(floorObj.id);
+
+			// Switch to another floor if current floor is deleted
+			if (parseInt(filterFloor) === floorNum) {
+				const remainingFloors = floors
+					.filter((f) => f.number !== floorNum)
+					.map((f) => f.number);
+				if (remainingFloors.length > 0) {
+					setFilterFloor(remainingFloors[0].toString());
+				} else {
+					setFilterFloor('1');
+				}
+			}
+
+			alert(`✅ Lantai ${floorNum} berhasil dihapus!`);
+		} catch (error) {
+			console.error('Failed to delete floor:', error);
+			alert(`❌ Gagal menghapus lantai ${floorNum}`);
+		}
 	};
 
 	const handleOpenFilterPopup = () => {
@@ -270,6 +319,10 @@ const EditLayoutPage = ({
 		setTempSortOrder('none');
 	};
 
+	const toggleFullscreen = () => {
+		setIsFullscreen(!isFullscreen);
+	};
+
 	return (
 		<div>
 			<h2 className='text-3xl font-bold text-primary mb-4'>Setup Meja</h2>
@@ -278,6 +331,8 @@ const EditLayoutPage = ({
 				onAddTable={handleAddTableButton}
 				onEditFloor={() => setShowEditFloorModal(true)}
 				uploadedFileName={uploadedFileName}
+				onToggleFullscreen={toggleFullscreen}
+				isFullscreen={isFullscreen}
 			/>
 			<div className='flex flex-col lg:flex-row gap-6'>
 				<FloorCanvas
@@ -292,8 +347,9 @@ const EditLayoutPage = ({
 					onCanvasMouseDown={handleCanvasMouseDown}
 					onCanvasMouseMove={handleCanvasMouseMove}
 					onCanvasMouseUp={handleCanvasMouseUp}
-				/>
-
+					isFullscreen={isFullscreen}
+					onToggleFullscreen={toggleFullscreen}
+				/>{' '}
 				<TableSidebar
 					displayedTables={displayedTables}
 					selectedTable={selectedTable}
@@ -314,7 +370,7 @@ const EditLayoutPage = ({
 				filterCapacity={tempFilterCapacity}
 				filterFloor={tempFilterFloor}
 				sortOrder={tempSortOrder}
-				floors={floors}
+				floors={floorNumbers}
 				onFilterCapacityChange={setTempFilterCapacity}
 				onFilterFloorChange={setTempFilterFloor}
 				onSortOrderChange={setTempSortOrder}
@@ -327,7 +383,7 @@ const EditLayoutPage = ({
 				tableNumber={newTableNumber}
 				tableCapacity={newTableCapacity}
 				tableFloor={newTableFloor}
-				floors={floors}
+				floors={floorNumbers}
 				onTableNumberChange={setNewTableNumber}
 				onTableCapacityChange={setNewTableCapacity}
 				onTableFloorChange={setNewTableFloor}

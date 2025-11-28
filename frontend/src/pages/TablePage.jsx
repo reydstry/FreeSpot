@@ -1,56 +1,129 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import SummaryCards from '../components/SummaryCards';
-import CctvPanel from '../components/CctvPanel';
-import TableFilter from '../components/TableFilter';
-import TableCard from '../components/TableCard';
+import React, { useMemo, useState, useEffect, useRef } from 'react'; // ⚡ Tambahkan useRef
+import SummaryCards from '../components/TablePage/SummaryCards';
+import CctvPanel from '../components/TablePage/CctvPanel';
+import TableFilter from '../components/TablePage/TableFilter';
+import TableCard from '../components/TablePage/TableCard';
+import RealtimeDetection from '../components/TablePage/RealtimeDetection';
+import { cctvAPI } from '../services/api';
 
-const TablePage = ({ tables, onStatusChange }) => {
+const TablePage = ({ tables, floors, onStatusChange }) => {
 	const [activeFilter, setActiveFilter] = useState('all');
-	const [selectedFloor, setSelectedFloor] = useState('all'); // untuk filter tabel
-	const [cctvSelectedFloor, setCctvSelectedFloor] = useState('1'); // khusus CCTV, default lantai 1
+	const [selectedFloor, setSelectedFloor] = useState('all');
+	const [cctvSelectedFloor, setCctvSelectedFloor] = useState('1');
 
-	// Load CCTV feeds dari localStorage
-	const [cctvFeeds, setCctvFeeds] = useState({ 1: [], 2: [], 3: [] });
+	// ⚡ Tambahkan canvasRef untuk RealtimeDetection
+	const canvasRef = useRef(null);
+
+	// Load CCTV feeds dari database
+	const [cctvFeeds, setCctvFeeds] = useState({});
+	const [isLoadingCctv, setIsLoadingCctv] = useState(false);
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	// Load CCTV streams from database
+	const loadCctvStreams = async () => {
+		try {
+			setIsLoadingCctv(true);
+			const streams = await cctvAPI.getAll();
+
+			// Convert DB streams to feeds format grouped by floor number
+			const feedsByFloor = {};
+			const timestamp = Date.now();
+
+			floors.forEach((floor) => {
+				const floorStreams = streams.filter(
+					(s) => s.floor_id === floor.id && s.is_active
+				);
+				// Add timestamp to force refresh and prevent cache
+				feedsByFloor[floor.number] = floorStreams.map((s) => {
+					const url = s.url;
+					const separator = url.includes('?') ? '&' : '?';
+					return `${url}${separator}_t=${timestamp}`;
+				});
+			});
+
+			setCctvFeeds(feedsByFloor);
+			// Increment refresh key to force re-render video elements
+			setRefreshKey((prev) => prev + 1);
+			console.log('✅ CCTV feeds loaded:', feedsByFloor);
+		} catch (error) {
+			console.error('Error loading CCTV streams:', error);
+			// Fallback to localStorage if DB fails
+			try {
+				const stored = localStorage.getItem('freespot_cctv_settings');
+				if (stored) {
+					const parsed = JSON.parse(stored);
+					setCctvFeeds(parsed);
+				}
+			} catch (e) {
+				console.error('Error loading from localStorage:', e);
+			}
+		} finally {
+			setIsLoadingCctv(false);
+		}
+	};
 
 	useEffect(() => {
-		try {
-			const stored = localStorage.getItem('freespot_cctv_settings');
-			if (stored) {
-				const parsed = JSON.parse(stored);
-				setCctvFeeds(parsed);
-			}
-		} catch (error) {
-			console.error('Error loading CCTV settings:', error);
-		}
+		loadCctvStreams();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [floors.length]);
+
+	// Listen for CCTV updates from Settings page
+	useEffect(() => {
+		const handleCctvUpdate = () => {
+			console.log('🔄 CCTV updated, reloading...');
+			loadCctvStreams();
+		};
+
+		window.addEventListener('cctv-updated', handleCctvUpdate);
+		return () => {
+			window.removeEventListener('cctv-updated', handleCctvUpdate);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Get unique floors from tables
-	const floors = useMemo(() => {
+	// Get floors from props (DB) or fallback to unique floors from tables
+	const floorsList = useMemo(() => {
+		if (floors && floors.length > 0) {
+			return floors.map((f) => f.number).sort((a, b) => a - b);
+		}
+		// Fallback: extract from tables
 		return [
 			...new Set(tables.map((t) => t.floor).filter((f) => f !== undefined)),
 		].sort((a, b) => a - b);
-	}, [tables]);
+	}, [floors, tables]);
 
 	// Dynamic floor options untuk CCTV (hanya lantai yang ada)
 	const cctvFloorOptions = useMemo(() => {
-		return floors.map((floor) => ({
+		return floorsList.map((floor) => ({
 			value: floor.toString(),
 			label: `Lantai ${floor}`,
 		}));
-	}, [floors]);
+	}, [floorsList]);
 
 	// Set default CCTV floor jika belum ada
 	useEffect(() => {
-		if (floors.length > 0 && !floors.includes(parseInt(cctvSelectedFloor))) {
-			setCctvSelectedFloor(floors[0].toString());
+		if (
+			floorsList.length > 0 &&
+			!floorsList.includes(parseInt(cctvSelectedFloor))
+		) {
+			setCctvSelectedFloor(floorsList[0].toString());
 		}
-	}, [floors]);
+	}, [floorsList, cctvSelectedFloor]);
 
 	// Filter tables by status and floor
 	let filteredTables = tables;
 
 	if (activeFilter !== 'all') {
-		filteredTables = filteredTables.filter((t) => t.status === activeFilter);
+		// Support both old (tersedia/terpakai/reservasi) and new (available/occupied/reserved) status
+		const statusMap = {
+			tersedia: ['tersedia', 'available'],
+			terpakai: ['terpakai', 'occupied'],
+			reservasi: ['reservasi', 'reserved'],
+		};
+		const matchStatuses = statusMap[activeFilter] || [activeFilter];
+		filteredTables = filteredTables.filter((t) =>
+			matchStatuses.includes(t.status)
+		);
 	}
 
 	if (selectedFloor !== 'all') {
@@ -61,25 +134,62 @@ const TablePage = ({ tables, onStatusChange }) => {
 
 	const cctvFeedsByFloor = cctvFeeds;
 
+	// Get current floor object for RealtimeDetection
+	const currentFloor = useMemo(() => {
+		if (!floors || floors.length === 0) return null;
+		const floorNum = parseInt(selectedFloor);
+		return floors.find((f) => f.number === floorNum);
+	}, [floors, selectedFloor]);
+
+	// Get tables for current floor
+	const currentFloorTables = useMemo(() => {
+		if (selectedFloor === 'all') return tables;
+		return tables.filter((t) => t.floor === parseInt(selectedFloor));
+	}, [tables, selectedFloor]);
+
+	// Handle detection updates
+	const handleDetectionUpdate = (detectionData) => {
+		// Update table status based on real-time detection
+		if (detectionData && detectionData.table_status) {
+			console.log('🔄 [DETECTION UPDATE] Updating table status from detection');
+
+			// ⚡ Convert object to array if needed
+			const tableStatusArray =
+				Array.isArray(detectionData.table_status) ||
+				Object.values(detectionData.table_status);
+
+			tableStatusArray.forEach((tableStatus) => {
+				const newStatus = tableStatus.occupied ? 'occupied' : 'available';
+				console.log(
+					`   Table ${tableStatus.id}: ${newStatus} (method: ${tableStatus.method})`
+				);
+				// Pass skipApiUpdate flag to prevent API sync
+				onStatusChange(tableStatus.id, newStatus, true);
+			});
+		}
+	};
+
 	return (
 		<div>
+			{/* Real-time Detection Panel - only show if floor is selected */}
+			{currentFloor && selectedFloor !== 'all' && (
+				<RealtimeDetection
+					floor={currentFloor}
+					tables={currentFloorTables}
+					canvasRef={canvasRef} // ⚡ Sekarang sudah didefinisikan
+					onDetectionUpdate={handleDetectionUpdate}
+				/>
+			)}
+
 			{/* CCTV di atas summary */}
 			<CctvPanel
+				key={refreshKey}
 				feedsByFloor={cctvFeedsByFloor}
 				floorOptions={cctvFloorOptions}
 				floorValue={cctvSelectedFloor}
 				onFloorChange={setCctvSelectedFloor}
-				onRefresh={() => {
-					// Reload feeds dari localStorage
-					try {
-						const stored = localStorage.getItem('freespot_cctv_settings');
-						if (stored) {
-							setCctvFeeds(JSON.parse(stored));
-						}
-					} catch (error) {
-						console.error('Error reloading CCTV settings:', error);
-					}
-				}}
+				onRefresh={loadCctvStreams}
+				isLoading={isLoadingCctv}
 			/>
 			<SummaryCards tables={tables} />
 
@@ -91,8 +201,8 @@ const TablePage = ({ tables, onStatusChange }) => {
 					selectedFloor={selectedFloor}
 					setSelectedFloor={setSelectedFloor}
 					tables={tables}
-				/>
-
+					floors={floors}
+				/>{' '}
 				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5'>
 					{filteredTables.length > 0 ? (
 						filteredTables.map((table) => (

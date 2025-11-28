@@ -1,4 +1,5 @@
 import React from 'react';
+import { FilterIcon } from 'lucide-react';
 
 const TableSidebar = ({
 	displayedTables,
@@ -10,7 +11,6 @@ const TableSidebar = ({
 	onFilterClick,
 	onTableSelect,
 	onEditTable,
-	onDeleteTable,
 }) => {
 	const handleTableClick = (table) => {
 		// Toggle selection: if already selected, deselect it
@@ -22,10 +22,10 @@ const TableSidebar = ({
 	};
 	return (
 		<div className='w-full lg:w-80 bg-secondary rounded-2xl shadow-lg overflow-hidden'>
-			<div className='p-4 bg-primary text-secondary-light flex items-center justify-between'>
-				<h3 className='font-bold text-lg'>
-					📋 Daftar Meja ({displayedTables.length})
-				</h3>
+			<div className='p-4 bg-primary text-secondary-light flex items-center justify-between font-bold'>
+				<h3 className='text-lg'>📋 Daftar Meja ({displayedTables.length})</h3>
+
+				<div className='text-lg mr-3'>Lt.{filterFloor}</div>
 			</div>
 
 			{/* Search and Filter Section */}
@@ -37,7 +37,7 @@ const TableSidebar = ({
 							value={searchQuery}
 							onChange={(e) => onSearchChange(e.target.value)}
 							placeholder='🔍 Cari nama meja...'
-							className='w-full px-4 py-2 pr-8 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 text-sm'
+							className='w-full bg-white hover:bg-primary/40 px-4 py-2 pr-8 border-2 border-primary/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40 text-sm'
 						/>
 						{searchQuery && (
 							<button
@@ -49,8 +49,8 @@ const TableSidebar = ({
 					</div>
 					<button
 						onClick={onFilterClick}
-						className='px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 bg-white border-2 border-primary/30 text-primary hover:border-primary'>
-						🔎
+						className='px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-md active:scale-95 border-2 border-primary/30 text-primary hover:bg-primary/20'>
+						<FilterIcon className='w-4 h-4 inline-block' />
 					</button>
 				</div>
 			</div>
@@ -61,7 +61,7 @@ const TableSidebar = ({
 						<div
 							key={table.id}
 							onClick={() => handleTableClick(table)}
-							className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
+							className={`relative px-4 py-3 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
 								selectedTable?.id === table.id
 									? 'border-primary bg-primary text-secondary shadow-lg'
 									: 'border-primary/30 hover:border-primary hover:bg-primary/10 shadow-md hover:scale-105 overflow-hidden'
@@ -76,7 +76,7 @@ const TableSidebar = ({
 											<h4
 												className={`font-bold text-base flex-1 ${
 													selectedTable?.id === table.id
-														? 'text-white'
+														? 'text-secondary'
 														: 'text-primary'
 												}`}>
 												{table.name}
@@ -89,16 +89,8 @@ const TableSidebar = ({
 															e.stopPropagation();
 															onEditTable(table);
 														}}
-														className='px-3 py-1.5 bg-info hover:bg-info-dark text-white rounded-lg text-xs font-bold transition-all active:scale-95'>
+														className='px-3 py-1.5 bg-secondary hover:bg-secondary-dark text-primary rounded-lg text-xs font-bold transition-all active:scale-95'>
 														✏️
-													</button>
-													<button
-														onClick={(e) => {
-															e.stopPropagation();
-															onDeleteTable(table.id);
-														}}
-														className='px-3 py-1.5 bg-danger hover:bg-danger-dark text-white rounded-lg text-xs font-bold transition-all active:scale-95'>
-														🗑️
 													</button>
 												</>
 											)}
@@ -134,6 +126,14 @@ const TableSidebar = ({
 													Math.abs(table.coords[3] - table.coords[1])
 												)}{' '}
 												px
+												{table.rotation !== undefined &&
+													table.rotation !== 0 && (
+														<>
+															<br />
+															🔄 Rotasi:{' '}
+															{Math.round((table.rotation * 180) / Math.PI)}°
+														</>
+													)}
 											</p>
 										)}
 									</div>

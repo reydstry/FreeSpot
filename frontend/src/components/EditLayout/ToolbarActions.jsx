@@ -5,6 +5,8 @@ const ToolbarActions = ({
 	onAddTable,
 	onEditFloor,
 	uploadedFileName,
+	onToggleFullscreen,
+	isFullscreen,
 }) => {
 	return (
 		<div className='mb-4'>
@@ -54,6 +56,20 @@ const ToolbarActions = ({
 					bg-linear-to-br from-secondary-light to-secondary/15 text-primary hover:from-secondary/30 hover:to-secondary-light'>
 					<div className='shine-animation'></div>
 					<span className='relative z-10'>+ Edit Lantai</span>
+				</button>
+
+				<button
+					onClick={onToggleFullscreen}
+					className='px-4 py-1 rounded-lg font-bold 
+					transition-all duration-700 ease-out
+					shadow-md hover:shadow-xl hover:scale-110 hover:-translate-y-1 active:scale-95
+					relative overflow-hidden
+					border border-transparent hover:border-secondary/30
+					bg-linear-to-br from-primary to-primary-dark text-secondary hover:from-primary-dark hover:to-primary'>
+					<div className='shine-animation'></div>
+					<span className='relative z-10'>
+						{isFullscreen ? '🗗 Exit Fullscreen' : '⛶ Fullscreen Canvas'}
+					</span>
 				</button>
 			</div>
 		</div>

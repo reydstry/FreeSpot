@@ -7,20 +7,36 @@ const TableFilter = ({
 	selectedFloor,
 	setSelectedFloor,
 	tables,
+	floors = [],
 }) => {
 	const filters = [
 		{ id: 'all', label: 'Semua Meja' },
-		{ id: 'tersedia', label: 'Tersedia' },
-		{ id: 'terpakai', label: 'Terpakai' },
-		{ id: 'reservasi', label: 'Direservasi' },
+		{
+			id: 'tersedia',
+			label: 'Tersedia',
+			matchStatus: ['tersedia', 'available'],
+		},
+		{
+			id: 'terpakai',
+			label: 'Terpakai',
+			matchStatus: ['terpakai', 'occupied'],
+		},
+		{
+			id: 'reservasi',
+			label: 'Direservasi',
+			matchStatus: ['reservasi', 'reserved'],
+		},
 	];
 
-	// Get unique floors from tables
-	const floors = [...new Set(tables.map((t) => t.floor))].sort((a, b) => a - b);
+	// Get floors from database (props) or fallback to unique floors from tables
+	const availableFloors =
+		floors && floors.length > 0
+			? floors.map((f) => f.number).sort((a, b) => a - b)
+			: [...new Set(tables.map((t) => t.floor))].sort((a, b) => a - b);
 
 	const floorOptions = [
 		{ value: 'all', label: 'Semua Lantai' },
-		...floors.map((floor) => ({
+		...availableFloors.map((floor) => ({
 			value: floor.toString(),
 			label: `Lantai ${floor}`,
 		})),

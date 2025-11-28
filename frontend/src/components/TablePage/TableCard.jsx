@@ -1,10 +1,19 @@
 import React from 'react';
-import TableImg from '../assets/meja.png';
-import kapasitasIcon from '../assets/kapasitas.png';
-import lokasiIcon from '../assets/lokasi.png';
+import TableImg from '../../assets/meja.png';
+import kapasitasIcon from '../../assets/kapasitas.png';
+import lokasiIcon from '../../assets/lokasi.png';
 
 const TableCard = ({ table, onStatusChange }) => {
 	const statusConfig = {
+		available: {
+			bgColor: 'bg-success/40',
+			textColor: 'text-success-light',
+			hovertextColor: 'hover:text-success-dark-2',
+			borderColor: 'border-success-light/30',
+			hoverBg: 'hover:bg-success-dark',
+			label: 'Tersedia',
+			subtitle: 'Meja siap dipakai',
+		},
 		tersedia: {
 			bgColor: 'bg-success/40',
 			textColor: 'text-success-light',
@@ -15,6 +24,15 @@ const TableCard = ({ table, onStatusChange }) => {
 			subtitle: 'Meja siap dipakai',
 		},
 
+		occupied: {
+			bgColor: 'bg-danger/40',
+			textColor: 'text-danger-light',
+			hovertextColor: 'hover:text-danger-dark-2',
+			borderColor: 'border-danger-light/30',
+			hoverBg: 'hover:bg-danger-dark',
+			label: 'Terpakai',
+			subtitle: 'Meja Dipakai',
+		},
 		terpakai: {
 			bgColor: 'bg-danger/40',
 			textColor: 'text-danger-light',
@@ -25,6 +43,15 @@ const TableCard = ({ table, onStatusChange }) => {
 			subtitle: 'Meja Dipakai',
 		},
 
+		reserved: {
+			bgColor: 'bg-warning/40',
+			textColor: 'text-warning-light',
+			hovertextColor: 'hover:text-warning-dark-2',
+			borderColor: 'border-warning-light/30',
+			hoverBg: 'hover:bg-warning-dark',
+			label: 'Reservasi',
+			subtitle: 'Meja sudah direservasi',
+		},
 		reservasi: {
 			bgColor: 'bg-warning/40',
 			textColor: 'text-warning-light',
@@ -36,7 +63,7 @@ const TableCard = ({ table, onStatusChange }) => {
 		},
 	};
 
-	const config = statusConfig[table.status];
+	const config = statusConfig[table.status] || statusConfig.available;
 
 	return (
 		<div className='bg-primary bg-linear-to-br from-primary-light to-primary/30 rounded-2xl p-5 shadow-md transition-all duration-400 5 border border-transparent'>
@@ -81,9 +108,16 @@ const TableCard = ({ table, onStatusChange }) => {
 
 			<button
 				onClick={() => {
-					const statuses = ['tersedia', 'terpakai', 'reservasi'];
-					const currentIndex = statuses.indexOf(table.status);
-					const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+					// Support both old (tersedia/terpakai/reservasi) and new (available/occupied/reserved) status
+					const statusMapping = {
+						available: 'occupied',
+						tersedia: 'terpakai',
+						occupied: 'reserved',
+						terpakai: 'reservasi',
+						reserved: 'available',
+						reservasi: 'tersedia',
+					};
+					const nextStatus = statusMapping[table.status] || 'available';
 					onStatusChange(table.id, nextStatus);
 				}}
 				className={`w-full py-1 px-3

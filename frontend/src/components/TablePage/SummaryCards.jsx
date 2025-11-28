@@ -1,9 +1,16 @@
 import React from 'react';
 
 const SummaryCards = ({ tables }) => {
-	const tersedia = tables.filter((t) => t.status === 'tersedia').length;
-	const terpakai = tables.filter((t) => t.status === 'terpakai').length;
-	const direservasi = tables.filter((t) => t.status === 'reservasi').length;
+	// Support both old (tersedia/terpakai/reservasi) and new (available/occupied/reserved) status
+	const tersedia = tables.filter(
+		(t) => t.status === 'tersedia' || t.status === 'available'
+	).length;
+	const terpakai = tables.filter(
+		(t) => t.status === 'terpakai' || t.status === 'occupied'
+	).length;
+	const direservasi = tables.filter(
+		(t) => t.status === 'reservasi' || t.status === 'reserved'
+	).length;
 
 	const cards = [
 		{

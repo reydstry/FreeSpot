@@ -8,7 +8,8 @@ export const useTableManagement = (
 	onDeleteTable,
 	selectedTable,
 	setSelectedTable,
-	setFilterFloor
+	setFilterFloor,
+	floors
 ) => {
 	const [showAddTablePopup, setShowAddTablePopup] = useState(false);
 	const [newTableNumber, setNewTableNumber] = useState('');
@@ -20,12 +21,20 @@ export const useTableManagement = (
 	const [editTableNumber, setEditTableNumber] = useState('');
 	const [editTableCapacity, setEditTableCapacity] = useState('');
 
-	const floors = [
-		...new Set(localTables.map((t) => t.floor).filter((f) => f !== undefined)),
-	].sort((a, b) => a - b);
+	// Floors dari props (dari DB), atau fallback ke unique values jika belum ada
+	const floorsList =
+		floors && Array.isArray(floors) && floors.length > 0
+			? floors
+					.map((f) => (typeof f === 'object' ? f.number : f))
+					.sort((a, b) => a - b)
+			: [
+					...new Set(
+						localTables.map((t) => t.floor).filter((f) => f !== undefined)
+					),
+				].sort((a, b) => a - b);
 
 	const handleAddTableButton = () => {
-		const defaultFloor = (floors[0]).toString();
+		const defaultFloor = floorsList.length > 0 ? floorsList[0].toString() : '1';
 		setNewTableFloor(defaultFloor);
 
 		const floorNum = parseInt(defaultFloor);
@@ -36,7 +45,7 @@ export const useTableManagement = (
 		setShowAddTablePopup(true);
 	};
 
-	const handleConfirmAddTable = () => {
+	const handleConfirmAddTable = async () => {
 		if (
 			!newTableNumber ||
 			isNaN(newTableNumber) ||
@@ -70,21 +79,28 @@ export const useTableManagement = (
 
 		const newTable = {
 			name: `Meja ${tableNum}`,
-			status: 'tersedia',
+			status: 'available',
 			capacity: parseInt(newTableCapacity),
 			floor: floorNum,
 			coords: [100, 100, 200, 200],
+			rotation: 0.0,
 		};
 
-		const addedTable = onAddTable(newTable);
-		setLocalTables((prev) => [...prev, addedTable]);
-
-		setShowAddTablePopup(false);
-		setNewTableNumber('');
-		setNewTableCapacity('4');
-		setNewTableFloor('');
-
-		setFilterFloor(newTableFloor);
+		try {
+			const addedTable = await onAddTable(newTable);
+			if (addedTable) {
+				setLocalTables((prev) => [...prev, addedTable]);
+				setShowAddTablePopup(false);
+				setNewTableNumber('');
+				setNewTableCapacity('4');
+				setNewTableFloor('');
+				setFilterFloor(newTableFloor);
+				console.log('✅ Table added from modal:', addedTable);
+			}
+		} catch (error) {
+			console.error('❌ Failed to add table from modal:', error);
+			alert('❌ Gagal menambahkan meja: ' + error.message);
+		}
 	};
 
 	const handleEditTable = (table) => {
@@ -161,6 +177,12 @@ export const useTableManagement = (
 	};
 
 	const handleDeleteTable = (tableId) => {
+		// Validasi: minimal harus ada 1 meja
+		if (localTables.length <= 1) {
+			alert('❌ Tidak bisa menghapus! Minimal harus ada 1 meja.');
+			return;
+		}
+
 		if (confirm('Hapus meja ini?')) {
 			onDeleteTable(tableId);
 			setLocalTables((prev) => prev.filter((t) => t.id !== tableId));
@@ -198,6 +220,6 @@ export const useTableManagement = (
 		handleDeleteTable,
 
 		// Floors
-		floors,
+		floors: floorsList,
 	};
 };
