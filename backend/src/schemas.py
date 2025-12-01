@@ -34,10 +34,12 @@ class FloorResponse(FloorBase):
 
 class TableBase(BaseModel):
     name: str
-    capacity: int = 4
-    status: str = "available"
     floor_id: int
-    coords: List[float] = [0, 0, 100, 100]
+    capacity: int = 1
+    status: str = "available"
+    coords: Optional[List[float]] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
     rotation: float = 0.0
 
 
@@ -50,12 +52,15 @@ class TableUpdate(BaseModel):
     capacity: Optional[int] = None
     status: Optional[str] = None
     coords: Optional[List[float]] = None
+    width: Optional[float] = None
+    height: Optional[float] = None
     rotation: Optional[float] = None
 
 
 class TableResponse(TableBase):
     id: int
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

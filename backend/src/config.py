@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/freespot"
     
     # Detection Settings
-    DETECTION_INTERVAL: int = 5  # seconds (5 for dev, 60 for production)
+    DETECTION_INTERVAL: int = 1  # seconds - real-time detection
     DETECTION_CONFIDENCE: float = 0.5
-    YOLO_MODEL: str = "yolo11m.pt"
+    YOLO_MODEL: str = "yolo11s.pt"  # Using the small model for faster detection
     
     # Server Settings
     HOST: str = "0.0.0.0"

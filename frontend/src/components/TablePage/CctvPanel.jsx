@@ -11,6 +11,7 @@ const CctvPanel = ({
 	onRefresh,
 	isLoading = false,
 	floors = [], // Add floors prop to get floor objects
+	tables = [], // Add tables prop for real-time status updates
 }) => {
 	// Get feeds for selected floor
 	const effectiveFeeds = feedsByFloor[floorValue] || [];
@@ -25,11 +26,16 @@ const CctvPanel = ({
 
 	// Table overlay state
 	const [showTableOverlay, setShowTableOverlay] = useState(true);
-	const [tableFrames, setTableFrames] = useState([]);
 	const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 720 });
 
 	// Refs for canvas overlays
 	const overlayRefs = useRef({});
+
+	// Get tables for current floor from props (real-time updated)
+	const tableFrames = React.useMemo(() => {
+		const floorNum = parseInt(floorValue);
+		return tables.filter((t) => t.floor === floorNum);
+	}, [tables, floorValue]);
 
 	// Reset errors and loaded state when floor changes or feeds count changes
 	useEffect(() => {
@@ -37,40 +43,32 @@ const CctvPanel = ({
 		setStreamLoaded({});
 	}, [floorValue, effectiveFeeds.length]);
 
-	// Fetch table frames when floor changes
+	// Fetch canvas size from server (only need dimensions, not table data)
 	useEffect(() => {
-		const fetchTableFrames = async () => {
+		const fetchCanvasSize = async () => {
 			try {
-				// Get floor object from floors array
 				const floorNum = parseInt(floorValue);
 				const floorObj = floors.find((f) => f.number === floorNum);
 
-				if (!floorObj) {
-					console.log('Floor object not found for:', floorValue);
-					setTableFrames([]);
-					return;
-				}
+				if (!floorObj) return;
 
 				const response = await fetch(
 					`${API_BASE_URL}/tables/with-frames/${floorObj.id}`
 				);
 				if (response.ok) {
 					const data = await response.json();
-					setTableFrames(data.tables || []);
 					setCanvasSize({
 						width: data.canvas_width || 1280,
 						height: data.canvas_height || 720,
 					});
-					console.log('📐 Loaded table frames:', data.tables?.length || 0);
 				}
 			} catch (error) {
-				console.error('Failed to fetch table frames:', error);
-				setTableFrames([]);
+				console.error('Failed to fetch canvas size:', error);
 			}
 		};
 
 		if (floorValue && floors.length > 0) {
-			fetchTableFrames();
+			fetchCanvasSize();
 		}
 	}, [floorValue, floors]);
 
@@ -103,14 +101,27 @@ const CctvPanel = ({
 
 			// Draw each table frame
 			tableFrames.forEach((table) => {
-				const coords = table.coords || [0, 0, 100, 100];
+				// coords can be [x, y] or [x1, y1, x2, y2] depending on source
+				const coords = table.coords || [0, 0];
 				const rotation = table.rotation || 0;
+				const tableWidth = table.width || 100;
+				const tableHeight = table.height || 100;
 
-				// Scale coordinates
-				const x1 = coords[0] * scaleX;
-				const y1 = coords[1] * scaleY;
-				const x2 = coords[2] * scaleX;
-				const y2 = coords[3] * scaleY;
+				// Calculate x1, y1, x2, y2 from coords
+				let x1, y1, x2, y2;
+				if (coords.length === 4) {
+					// Old format: [x1, y1, x2, y2]
+					x1 = coords[0] * scaleX;
+					y1 = coords[1] * scaleY;
+					x2 = coords[2] * scaleX;
+					y2 = coords[3] * scaleY;
+				} else {
+					// New format: [x, y] + width/height
+					x1 = coords[0] * scaleX;
+					y1 = coords[1] * scaleY;
+					x2 = (coords[0] + tableWidth) * scaleX;
+					y2 = (coords[1] + tableHeight) * scaleY;
+				}
 
 				const width = x2 - x1;
 				const height = y2 - y1;

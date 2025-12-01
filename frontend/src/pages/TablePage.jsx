@@ -1,10 +1,16 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react'; // ⚡ Tambahkan useRef
+import React, {
+	useMemo,
+	useState,
+	useEffect,
+	useRef,
+	useCallback,
+} from 'react';
 import SummaryCards from '../components/TablePage/SummaryCards';
 import CctvPanel from '../components/TablePage/CctvPanel';
 import TableFilter from '../components/TablePage/TableFilter';
 import TableCard from '../components/TablePage/TableCard';
 import RealtimeDetection from '../components/TablePage/RealtimeDetection';
-import { cctvAPI } from '../services/api';
+import { cctvAPI, API_BASE_URL } from '../services/api';
 
 const TablePage = ({ tables, floors, onStatusChange }) => {
 	const [activeFilter, setActiveFilter] = useState('all');
@@ -13,6 +19,9 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 
 	// ⚡ Tambahkan canvasRef untuk RealtimeDetection
 	const canvasRef = useRef(null);
+
+	// WebSocket connections for all floors
+	const wsConnectionsRef = useRef({});
 
 	// Load CCTV feeds dari database
 	const [cctvFeeds, setCctvFeeds] = useState({});
@@ -148,35 +157,102 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 	}, [tables, selectedFloor]);
 
 	// Handle detection updates
-	const handleDetectionUpdate = (detectionData) => {
-		// Update table status based on real-time detection
-		if (detectionData && detectionData.table_status) {
-			console.log('🔄 [DETECTION UPDATE] Updating table status from detection');
-
-			// ⚡ Convert object to array if needed
-			const tableStatusArray =
-				Array.isArray(detectionData.table_status) ||
-				Object.values(detectionData.table_status);
-
-			tableStatusArray.forEach((tableStatus) => {
-				const newStatus = tableStatus.occupied ? 'occupied' : 'available';
+	const handleDetectionUpdate = useCallback(
+		(detectionData) => {
+			// Update table status based on real-time detection
+			if (detectionData && detectionData.table_status) {
 				console.log(
-					`   Table ${tableStatus.id}: ${newStatus} (method: ${tableStatus.method})`
+					'🔄 [DETECTION UPDATE] Updating table status from detection'
 				);
-				// Pass skipApiUpdate flag to prevent API sync
-				onStatusChange(tableStatus.id, newStatus, true);
+
+				// ⚡ Properly convert to array
+				const tableStatusArray = Array.isArray(detectionData.table_status)
+					? detectionData.table_status
+					: Object.values(detectionData.table_status);
+
+				tableStatusArray.forEach((tableStatus) => {
+					const newStatus = tableStatus.occupied ? 'occupied' : 'available';
+					console.log(
+						`   Table ${tableStatus.id}: ${newStatus} (method: ${tableStatus.method})`
+					);
+					// Pass skipApiUpdate flag to prevent API sync (DB already updated by backend)
+					onStatusChange(tableStatus.id, newStatus, true);
+				});
+			}
+		},
+		[onStatusChange]
+	);
+
+	// Connect WebSocket for ALL floors to receive real-time updates
+	useEffect(() => {
+		if (!floors || floors.length === 0) return;
+
+		const connectToFloor = (floorId) => {
+			if (wsConnectionsRef.current[floorId]) return; // Already connected
+
+			const wsUrl = API_BASE_URL.replace('http', 'ws');
+			const fullWsUrl = `${wsUrl}/ws/detection/${floorId}`;
+
+			console.log(`🔌 [WS] Connecting to floor ${floorId}:`, fullWsUrl);
+
+			const ws = new WebSocket(fullWsUrl);
+
+			ws.onopen = () => {
+				console.log(`✅ [WS] Connected to floor ${floorId}`);
+			};
+
+			ws.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					if (data && data.table_status) {
+						console.log(
+							`📨 [WS] Floor ${floorId}: ${data.persons_detected} persons`
+						);
+						handleDetectionUpdate(data);
+					}
+				} catch (err) {
+					console.error(`❌ [WS] Parse error floor ${floorId}:`, err);
+				}
+			};
+
+			ws.onerror = (error) => {
+				console.error(`❌ [WS] Error floor ${floorId}:`, error);
+			};
+
+			ws.onclose = () => {
+				console.log(`🔌 [WS] Disconnected from floor ${floorId}`);
+				delete wsConnectionsRef.current[floorId];
+				// Auto-reconnect after 3 seconds
+				setTimeout(() => connectToFloor(floorId), 3000);
+			};
+
+			wsConnectionsRef.current[floorId] = ws;
+		};
+
+		// Connect to all floors
+		floors.forEach((floor) => {
+			connectToFloor(floor.id);
+		});
+
+		// Cleanup on unmount
+		return () => {
+			Object.values(wsConnectionsRef.current).forEach((ws) => {
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.close();
+				}
 			});
-		}
-	};
+			wsConnectionsRef.current = {};
+		};
+	}, [floors, handleDetectionUpdate]);
 
 	return (
 		<div>
-			{/* Real-time Detection Panel - only show if floor is selected */}
+			{/* Real-time Detection Panel - show detection info for selected floor */}
 			{currentFloor && selectedFloor !== 'all' && (
 				<RealtimeDetection
 					floor={currentFloor}
 					tables={currentFloorTables}
-					canvasRef={canvasRef} // ⚡ Sekarang sudah didefinisikan
+					canvasRef={canvasRef}
 					onDetectionUpdate={handleDetectionUpdate}
 				/>
 			)}
@@ -191,6 +267,7 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 				onRefresh={loadCctvStreams}
 				isLoading={isLoadingCctv}
 				floors={floors}
+				tables={tables}
 			/>
 			<SummaryCards tables={tables} />
 

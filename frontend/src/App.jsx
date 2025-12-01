@@ -56,6 +56,8 @@ export default function App() {
 								capacity: t.capacity,
 								status: t.status || 'available',
 								coords: t.coords,
+								width: t.width,
+								height: t.height,
 								rotation: t.rotation ?? 0.0,
 							};
 						})
@@ -71,14 +73,22 @@ export default function App() {
 			}
 		};
 
-		loadTables();
-
-		// ⚡⚡⚡ Poll DB setiap 1 detik untuk ultra fast sync
-		const pollInterval = setInterval(() => {
+		// Load tables once when floors change
+		if (floors.length > 0) {
 			loadTables();
-		}, 1000); // ⚡⚡⚡ 1 second (dari 3 second)
+		}
 
-		return () => clearInterval(pollInterval);
+		// Listen for table updates (from detection or other sources)
+		const handleTableUpdate = () => {
+			loadTables();
+		};
+
+		window.addEventListener('tables-updated', handleTableUpdate);
+
+		return () => {
+			cancelled = true;
+			window.removeEventListener('tables-updated', handleTableUpdate);
+		};
 	}, [floors]);
 
 	// (Optional) jika ingin simpan ke localStorage lagi,

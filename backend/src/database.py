@@ -5,7 +5,7 @@ FreeSpot Backend - Database Configuration
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from config import settings
+from src.config import settings
 
 # Create database engine
 engine = create_engine(
@@ -29,10 +29,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-def init_db():
-    """Initialize database tables"""
-    from models import Floor, Table, CCTVStream
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created successfully")

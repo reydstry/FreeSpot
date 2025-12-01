@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Callable
 from collections import defaultdict
 
-from config import settings
+from src.config import settings
 
 
 class DetectionService:
@@ -198,7 +198,6 @@ class DetectionService:
             return
         
         stream_url = stream_info["url"]
-        tables = stream_info["tables"]
         canvas_width = stream_info["canvas_width"]
         canvas_height = stream_info["canvas_height"]
         
@@ -211,37 +210,50 @@ class DetectionService:
         
         while not self.stop_events[floor_id].is_set():
             try:
-                # Open or reopen stream
-                if cap is None or not cap.isOpened():
+                # FRESH DATA: Get latest tables from database each iteration
+                tables = self._get_fresh_tables(floor_id)
+                if not tables:
+                    print(f"⚠️  No tables found for floor {floor_id}, skipping detection")
+                    time.sleep(settings.DETECTION_INTERVAL)
+                    continue
+                
+                # REAL-TIME FIX: Close and reopen stream each time to get fresh frame
+                # This is the most reliable way to avoid buffered frames
+                if cap is not None:
+                    cap.release()
+                
+                cap = cv2.VideoCapture(stream_url)
+                
+                if not cap.isOpened():
+                    retry_count += 1
                     if retry_count >= max_retries:
                         print(f"❌ Max retries reached for floor {floor_id}")
                         break
-                    
-                    print(f"📹 Connecting to stream: {stream_url}")
-                    cap = cv2.VideoCapture(stream_url)
-                    
-                    if not cap.isOpened():
-                        retry_count += 1
-                        print(f"⚠️  Failed to open stream (attempt {retry_count}/{max_retries})")
-                        time.sleep(2)
-                        continue
-                    
-                    retry_count = 0
-                    print(f"✅ Stream connected for floor {floor_id}")
+                    print(f"⚠️  Failed to open stream (attempt {retry_count}/{max_retries})")
+                    time.sleep(2)
+                    continue
                 
-                # Read frame
+                retry_count = 0
+                
+                # Set minimal buffer
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                
+                # Read the frame (should be fresh since we just opened the stream)
                 ret, frame = cap.read()
-                if not ret:
+                
+                # Release immediately after reading
+                cap.release()
+                cap = None
+                
+                if not ret or frame is None:
                     print(f"⚠️  Failed to read frame from floor {floor_id}")
-                    cap.release()
-                    cap = None
                     time.sleep(1)
                     continue
                 
                 # Get frame dimensions
                 frame_height, frame_width = frame.shape[:2]
                 
-                # Run detection
+                # Run detection with fresh tables data
                 start_time = time.time()
                 result = self._process_frame(
                     frame, 
@@ -272,7 +284,7 @@ class DetectionService:
                 available_count = len(result["table_status"]) - occupied_count
                 
                 print(f"📊 [Floor {floor_id}] Persons: {result['person_count']} | "
-                      f"Occupied: {occupied_count} | Available: {available_count} | "
+                      f"Tables: {len(tables)} | Occupied: {occupied_count} | Available: {available_count} | "
                       f"Time: {processing_time:.0f}ms")
                 
                 # Notify callbacks
@@ -336,17 +348,25 @@ class DetectionService:
         # Check each table for occupancy using center point detection
         table_status = []
         for table in tables:
-            coords = table.get("coords", [0, 0, 100, 100])
+            coords = table.get("coords", [0, 0])  # [x, y] position
+            width = table.get("width", 100)
+            height = table.get("height", 100)
             table_id = table.get("id")
             table_name = table.get("name", f"Table {table_id}")
             rotation = table.get("rotation", 0.0)
             
+            # Calculate table bounds from coords, width, height
+            x1 = coords[0] if coords else 0
+            y1 = coords[1] if len(coords) > 1 else 0
+            x2 = x1 + width
+            y2 = y1 + height
+            
             # Scale table coordinates to frame size
             scaled_coords = [
-                coords[0] * scale_x,
-                coords[1] * scale_y,
-                coords[2] * scale_x,
-                coords[3] * scale_y
+                x1 * scale_x,
+                y1 * scale_y,
+                x2 * scale_x,
+                y2 * scale_y
             ]
             
             # Check if any person's center point is inside this table
@@ -442,6 +462,27 @@ class DetectionService:
         
         return is_inside, distance
     
+    def _get_fresh_tables(self, floor_id: int) -> List[dict]:
+        """Get fresh tables data from database for a specific floor"""
+        try:
+            from src.database import SessionLocal
+            from src.models import Table
+            
+            db = SessionLocal()
+            try:
+                tables = db.query(Table).filter(Table.floor_id == floor_id).all()
+                tables_data = [t.to_dict() for t in tables]
+                return tables_data
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"⚠️  Failed to get fresh tables: {e}")
+            # Fallback to cached tables if available
+            stream_info = self.active_streams.get(floor_id)
+            if stream_info and "tables" in stream_info:
+                return stream_info["tables"]
+            return []
+    
     def register_callback(self, floor_id: int, callback: Callable):
         """Register a callback for detection results"""
         self.callbacks[floor_id].append(callback)
@@ -465,16 +506,19 @@ class DetectionService:
     
     def get_status(self) -> dict:
         """Get detection service status"""
+        streams_info = {}
+        for floor_id, info in self.active_streams.items():
+            # Get fresh table count from DB
+            tables = self._get_fresh_tables(floor_id)
+            streams_info[floor_id] = {
+                "url": info["url"],
+                "tables_count": len(tables),
+                "started_at": info["started_at"]
+            }
+        
         return {
             "is_running": len(self.active_streams) > 0,
-            "streams": {
-                floor_id: {
-                    "url": info["url"],
-                    "tables_count": len(info["tables"]),
-                    "started_at": info["started_at"]
-                }
-                for floor_id, info in self.active_streams.items()
-            },
+            "streams": streams_info,
             "device": str(self.device),
             "model": settings.YOLO_MODEL,
             "initialized": self.is_initialized
