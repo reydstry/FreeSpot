@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-primary: #303445;
+	--color-primary-light: #404556;
+	--color-primary-light-2: #5f6787;
+	--color-primary-dark: #202030;
+
+	--color-secondary: #f5e4d0;
+	--color-secondary-light: #fdf7ef;
+	--color-secondary-dark: #e5d4c0;
+
+	--color-success: #22c55e;
+	--color-success-light: #4ade80;
+	--color-success-dark: #16a34a;
+	--color-success-dark-2: #005d19;
+
+	--color-danger: #ef4444;
+	--color-danger-light: #f87171;
+	--color-danger-dark: #dc2626;
+	--color-danger-dark-2: #8b0000;
+
+	--color-warning: #eab308;
+	--color-warning-light: #facc15;
+	--color-warning-dark: #ca8a04;
+	--color-warning-dark-2: #6e4e00;
+
+	--color-info: #3b82f6;
+	--color-info-light: #60a5fa;
+	--color-info-dark: #2563eb;
+
+	--scrollbar-bg: rgba(var(--color-secondary), 0.85);
+}
+
+/* Shine effect - fixed version */
+.shine-animation {
+	position: absolute;
+	top: 0;
+	left: -100%;
+	width: 50%;
+	height: 100%;
+	background: linear-gradient(
+		120deg,
+		transparent 0%,
+		rgba(255, 255, 255, 0.35) 50%,
+		transparent 100%
+	);
+	transform: skewX(-25deg);
+	pointer-events: none;
+	z-index: 1;
+	transition: left 0.6s ease;
+}
+
+*:hover > .shine-animation {
+	left: 120%;
+}
+
+/* Firefox global */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-primary) transparent;
+}
+
+/* WebKit (Chrome, Edge, etc) */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+	border-top: 10px solid transparent;
+	border-bottom: 10px solid transparent;
+	border-left: 2px solid var(--color-primary);
+	border-right: 2px solid var(--color-primary);
+	background-clip: padding-box; /* biar gradien tidak mengisi area transparan */
+	border-radius: 9999px;
+	background: linear-gradient(
+		135deg,
+		var(--color-primary-light) 0%,
+		var(--color-primary-dark) 100%
+	);
+	border: 2px solid var(--color-primary);
+	border-radius: 8px;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+	transition:
+		background 0.3s,
+		box-shadow 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: linear-gradient(
+		135deg,
+		var(--color-success-dark) 0%,
+		var(--color-success) 100%
+	);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+::-webkit-scrollbar-button {
+	display: none;
+}
