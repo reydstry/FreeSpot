@@ -1,53 +1,5 @@
-# Python
+
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
-venv/
-env/
-ENV/
 .venv/
-
-# Environment Variables
 .env
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# YOLO Models (large files)
 *.pt
-*.onnx
-*.engine
-
-# Logs
-*.log
-logs/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Database
-*.db
-*.sqlite3
