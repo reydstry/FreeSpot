@@ -3,6 +3,8 @@ import {
 	RefreshCw,
 	AlertCircle,
 	CheckCircle,
+	Video,
+	Loader2,
 } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
@@ -11,6 +13,9 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	const [detectionData, setDetectionData] = useState(null);
 	const [error, setError] = useState(null);
 	const [connectionStatus, setConnectionStatus] = useState('disconnected');
+	const [statusMessage, setStatusMessage] = useState(
+		'Menghubungkan ke server...'
+	);
 	const wsRef = useRef(null);
 	const reconnectTimeoutRef = useRef(null);
 	const hasAutoStarted = useRef(false);
@@ -18,11 +23,10 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	useEffect(() => {
 		// Auto-connect WebSocket when component mounts
 		if (floor && floor.id && !hasAutoStarted.current) {
-			console.log(
-				'🚀 [AUTO-START] Component mounted, checking detection status...'
-			);
+			console.log('🚀 [AUTO-START] Component mounted, connecting WebSocket...');
 			hasAutoStarted.current = true;
-			checkDetectionStatus();
+			setStatusMessage('Menghubungkan ke server deteksi...');
+			connectWebSocket();
 		}
 
 		// Cleanup on unmount
@@ -37,37 +41,6 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			}
 		};
 	}, [floor]);
-
-	const checkDetectionStatus = async () => {
-		try {
-			console.log('🔍 [STATUS CHECK] Checking if detection is running...');
-			const response = await fetch(`${API_BASE_URL}/detection/status`);
-
-			if (response.ok) {
-				const data = await response.json();
-				console.log('📊 [STATUS CHECK] Detection status:', data);
-
-				// Check if detection is running for this floor
-				const isRunning = data.streams && data.streams[floor.id];
-
-				if (isRunning) {
-					console.log(
-						'✅ [AUTO-START] Detection already running, connecting WebSocket...'
-					);
-					setIsDetecting(true);
-					connectWebSocket();
-				} else {
-					console.log(
-						'⚠️  [AUTO-START] Detection not running yet, will auto-connect when available'
-					);
-					// Try again after 2 seconds
-					setTimeout(checkDetectionStatus, 2000);
-				}
-			}
-		} catch (err) {
-			console.error('❌ [STATUS CHECK] Failed to check status:', err);
-		}
-	};
 
 	const startDetection = async () => {
 		try {
@@ -170,6 +143,8 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 		const wsUrl = API_BASE_URL.replace('http', 'ws');
 		const fullWsUrl = `${wsUrl}/ws/detection/${floor.id}`;
 		console.log('🔌 [WEBSOCKET] Connecting to:', fullWsUrl);
+		setStatusMessage('Menghubungkan ke WebSocket...');
+		setConnectionStatus('connecting');
 
 		const ws = new WebSocket(fullWsUrl);
 
@@ -177,6 +152,8 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			console.log('✅ [WEBSOCKET] Connection established');
 			console.log('⏳ [WEBSOCKET] Waiting for detection data...');
 			setConnectionStatus('connected');
+			setStatusMessage('Terhubung! Memulai deteksi...');
+			setIsDetecting(true);
 			setError(null);
 		};
 
@@ -184,27 +161,56 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			try {
 				const data = JSON.parse(event.data);
 				console.log('📨 [WEBSOCKET] Received data:', {
+					type: data.type,
 					timestamp: data.timestamp,
 					personsDetected: data.persons_detected,
 					tablesCount: data.table_status?.length,
+					status: data.status,
 				});
+
+				// Handle different message types
+				if (data.type === 'connected') {
+					setStatusMessage(
+						`✅ ${data.message || 'Detection sedang berjalan...'}`
+					);
+					setIsDetecting(true);
+					return;
+				}
+
+				if (data.type === 'pong' || data.type === 'ping') {
+					return; // Ignore ping/pong
+				}
 
 				if (data.error) {
 					console.error('❌ [WEBSOCKET] Error from server:', data.error);
 					setError(data.error);
-					setConnectionStatus('error');
+					setStatusMessage(`⚠️ ${data.error}`);
+					if (data.status === 'error') {
+						setConnectionStatus('error');
+					}
 					return;
 				}
 
-				setDetectionData(data);
-				setConnectionStatus('connected');
-
-				// Call parent callback to update table status in App state
-				if (onDetectionUpdate && data.table_status) {
-					console.log(
-						'🔄 [WEBSOCKET] Calling onDetectionUpdate with table_status'
+				// Update detection status message based on status
+				if (data.status === 'detecting') {
+					setStatusMessage(
+						`🔍 Deteksi berjalan - ${data.persons_detected || 0} orang terdeteksi`
 					);
-					onDetectionUpdate(data);
+				} else if (data.status === 'connecting') {
+					setStatusMessage('📹 Menghubungkan ke CCTV...');
+				}
+
+				if (data.table_status) {
+					setDetectionData(data);
+					setConnectionStatus('connected');
+
+					// Call parent callback to update table status in App state
+					if (onDetectionUpdate) {
+						console.log(
+							'🔄 [WEBSOCKET] Calling onDetectionUpdate with table_status'
+						);
+						onDetectionUpdate(data);
+					}
 				}
 			} catch (err) {
 				console.error('❌ [WEBSOCKET] Failed to parse message:', err);
@@ -214,21 +220,21 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 		ws.onerror = (error) => {
 			console.error('❌ [WEBSOCKET] Connection error:', error);
 			setConnectionStatus('error');
+			setStatusMessage('❌ Koneksi error. Mencoba ulang...');
 			setError('Connection error. Retrying...');
 		};
 
 		ws.onclose = () => {
 			console.log('🔌 [WEBSOCKET] Connection closed');
 			setConnectionStatus('disconnected');
+			setStatusMessage('Koneksi terputus. Menghubungkan ulang...');
 
-			// Auto-reconnect if detection is still active
-			if (isDetecting) {
-				console.log('🔄 [WEBSOCKET] Will attempt to reconnect in 3 seconds...');
-				reconnectTimeoutRef.current = setTimeout(() => {
-					console.log('🔄 [WEBSOCKET] Reconnecting...');
-					connectWebSocket();
-				}, 3000);
-			}
+			// Auto-reconnect
+			console.log('🔄 [WEBSOCKET] Will attempt to reconnect in 3 seconds...');
+			reconnectTimeoutRef.current = setTimeout(() => {
+				console.log('🔄 [WEBSOCKET] Reconnecting...');
+				connectWebSocket();
+			}, 3000);
 		};
 
 		wsRef.current = ws;
@@ -272,7 +278,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			<div className='flex items-center justify-between mb-4'>
 				<div>
 					<h3 className='text-xl font-bold text-primary'>
-						🎥 Real-Time Detection (Auto-Started)
+						🎥 Real-Time Detection
 					</h3>
 					<p className='text-sm text-gray-600'>
 						{floor?.name || 'Unknown Floor'} - CCTV Live Monitoring
@@ -287,17 +293,46 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			</div>
 
 			{/* Real-time Status Indicator */}
-			<div className='bg-blue-50 border-l-4 border-blue-500 p-4 mb-4'>
-				<div className='flex items-center gap-2'>
-					<div className='animate-pulse w-3 h-3 bg-blue-500 rounded-full'></div>
+			<div
+				className={`border-l-4 p-4 mb-4 ${
+					isDetecting && detectionData
+						? 'bg-green-50 border-green-500'
+						: connectionStatus === 'error'
+							? 'bg-red-50 border-red-500'
+							: 'bg-blue-50 border-blue-500'
+				}`}>
+				<div className='flex items-center gap-3'>
+					{isDetecting && detectionData ? (
+						<Video className='w-5 h-5 text-green-600 animate-pulse' />
+					) : connectionStatus === 'error' ? (
+						<AlertCircle className='w-5 h-5 text-red-600' />
+					) : (
+						<Loader2 className='w-5 h-5 text-blue-600 animate-spin' />
+					)}
 					<div>
-						<p className='text-blue-700 font-semibold'>
-							Auto-Detection Mode Active
+						<p
+							className={`font-semibold ${
+								isDetecting && detectionData
+									? 'text-green-700'
+									: connectionStatus === 'error'
+										? 'text-red-700'
+										: 'text-blue-700'
+							}`}>
+							{statusMessage}
 						</p>
-						<p className='text-blue-600 text-sm'>
-							Detection started automatically with server. Monitoring{' '}
-							{tables?.length || 0} tables with{' '}
-							{detectionData?.persons_detected || 0} persons detected.
+						<p
+							className={`text-sm ${
+								isDetecting && detectionData
+									? 'text-green-600'
+									: connectionStatus === 'error'
+										? 'text-red-600'
+										: 'text-blue-600'
+							}`}>
+							{isDetecting && detectionData
+								? `Memantau ${tables?.length || 0} meja • ${detectionData?.persons_detected || 0} orang terdeteksi`
+								: connectionStatus === 'error'
+									? 'Terjadi kesalahan pada koneksi'
+									: 'Harap tunggu, sistem sedang memproses...'}
 						</p>
 					</div>
 				</div>
@@ -382,23 +417,35 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 
 					{/* Timestamp */}
 					<div className='text-xs text-gray-500 text-center'>
-						Last update: {new Date(detectionData.timestamp).toLocaleString()}
+						Terakhir diperbarui:{' '}
+						{new Date(detectionData.timestamp).toLocaleString('id-ID')}
 					</div>
 				</div>
 			)}
 
 			{!detectionData && connectionStatus === 'connected' && (
 				<div className='text-center py-8 text-gray-500'>
-					<RefreshCw className='w-8 h-8 animate-spin mx-auto mb-2' />
-					<p>Waiting for detection data...</p>
-					<p className='text-xs mt-2'>Detection runs every 1 second</p>
+					<Loader2 className='w-8 h-8 animate-spin mx-auto mb-2 text-blue-500' />
+					<p className='font-medium'>Deteksi sedang berjalan...</p>
+					<p className='text-xs mt-2'>Menunggu data dari CCTV stream</p>
 				</div>
 			)}
 
-			{!isDetecting && connectionStatus === 'disconnected' && (
+			{connectionStatus === 'connecting' && (
+				<div className='text-center py-8 text-gray-500'>
+					<Loader2 className='w-8 h-8 animate-spin mx-auto mb-2 text-blue-500' />
+					<p className='font-medium'>Menghubungkan ke server deteksi...</p>
+					<p className='text-xs mt-2'>Harap tunggu</p>
+				</div>
+			)}
+
+			{connectionStatus === 'disconnected' && !isDetecting && (
 				<div className='text-center py-8 text-gray-500'>
 					<RefreshCw className='w-8 h-8 animate-spin mx-auto mb-2' />
-					<p>Connecting to detection service...</p>
+					<p className='font-medium'>Menghubungkan ulang...</p>
+					<p className='text-xs mt-2'>
+						Koneksi terputus, mencoba menghubungkan kembali
+					</p>
 				</div>
 			)}
 		</div>
