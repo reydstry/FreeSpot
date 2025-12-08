@@ -36,6 +36,7 @@
 6. Catat URL: `https://USERNAME-freespot-ml-api.hf.space`
 
 **Test:**
+
 ```bash
 curl https://USERNAME-freespot-ml-api.hf.space/health
 ```
@@ -56,11 +57,11 @@ curl https://USERNAME-freespot-ml-api.hf.space/health
 2. Pilih repo `FreeSpot`, **Root Directory**: `backend`
 3. Set **Variables**:
 
-| Variable | Value |
-|----------|-------|
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
-| `ML_API_URL` | `https://USERNAME-freespot-ml-api.hf.space` |
-| `DEBUG` | `false` |
+| Variable       | Value                                       |
+| -------------- | ------------------------------------------- |
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}`                |
+| `ML_API_URL`   | `https://USERNAME-freespot-ml-api.hf.space` |
+| `DEBUG`        | `false`                                     |
 
 4. **Settings** → **Networking** → **Generate Domain**
 5. Catat URL backend (contoh: `https://freespot-xxx.up.railway.app`)
@@ -76,8 +77,8 @@ curl https://USERNAME-freespot-ml-api.hf.space/health
    - **Framework**: `Vite`
 4. **Environment Variables**:
 
-| Variable | Value |
-|----------|-------|
+| Variable            | Value                                 |
+| ------------------- | ------------------------------------- |
 | `VITE_API_BASE_URL` | `https://freespot-xxx.up.railway.app` |
 
 5. Deploy
@@ -86,29 +87,33 @@ curl https://USERNAME-freespot-ml-api.hf.space/health
 
 ## Cost Summary (ALL FREE)
 
-| Service | Platform | Limit |
-|---------|----------|-------|
-| Frontend | Vercel | Unlimited |
-| Backend | Railway | 500 hours/month |
-| Database | Railway | Shared dengan backend |
-| ML API | Hugging Face | Free (sleep after idle) |
+| Service  | Platform     | Limit                   |
+| -------- | ------------ | ----------------------- |
+| Frontend | Vercel       | Unlimited               |
+| Backend  | Railway      | 500 hours/month         |
+| Database | Railway      | Shared dengan backend   |
+| ML API   | Hugging Face | Free (sleep after idle) |
 
 ---
 
 ## Troubleshooting
 
 ### ML API cold start
+
 - HF free tier sleep setelah idle
 - Request pertama ~30-60 detik untuk wake up
 
 ### Railway hours limit
+
 - 500 hours/month shared antara backend + database
 - Jika habis, service pause sampai bulan depan
 
 ### Backend tidak connect ML API
+
 - Pastikan URL benar: `https://USERNAME-freespot-ml-api.hf.space`
 - Cek ML API running dengan `/health`
 
 ### Frontend CORS error
+
 - Backend sudah set `allow_origins=["*"]`
 - Pastikan `VITE_API_BASE_URL` tidak ada trailing slash
