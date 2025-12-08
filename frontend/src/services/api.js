@@ -1,5 +1,15 @@
-export const API_BASE_URL =
-	import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Ensure API URL has protocol prefix
+const getApiBaseUrl = () => {
+	const envUrl = import.meta.env.VITE_API_BASE_URL;
+	if (!envUrl) return 'http://localhost:8000';
+	// Add https:// if no protocol is specified
+	if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+		return `https://${envUrl}`;
+	}
+	return envUrl;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const floorsAPI = {
 	async getAll() {
@@ -153,13 +163,4 @@ export const healthAPI = {
 			return false;
 		}
 	},
-};
-
-export default {
-	floorsAPI,
-	tablesAPI,
-	cctvAPI,
-	detectionAPI,
-	healthAPI,
-	API_BASE_URL,
 };
