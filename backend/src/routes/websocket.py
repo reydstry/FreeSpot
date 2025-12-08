@@ -64,13 +64,13 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
         while True:
             try:
                 # Check for client messages with short timeout
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
                 
                 if data == "ping":
                     await websocket.send_text("pong")
                 
             except asyncio.TimeoutError:
-                # Poll for new detection results every 0.5s
+                # Poll for new detection results every 100ms for low latency
                 result = detection_service.get_latest_result(floor_id)
                 if result:
                     current_timestamp = result.get("timestamp")

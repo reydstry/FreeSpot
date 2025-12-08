@@ -6,8 +6,8 @@ import EditTableModal from '../components/PopUp/EditTablePopUp';
 import FilterModal from '../components/PopUp/FilterPopUp';
 import EditFloorModal from '../components/PopUp/EditFloorPopUp';
 import ToolbarActions from '../components/EditLayout/ToolbarActions';
-import { useCanvasInteractions } from '../hooks/useCanvasInteractions';
-import { useTableManagement } from '../hooks/useTableManagement';
+import { useCanvasInteractions, useTableManagement } from '../hooks';
+import { showToast } from '../components/Toast/ToastContainer';
 
 const EditLayoutPage = ({
 	tables,
@@ -243,12 +243,13 @@ const EditLayoutPage = ({
 			console.log('✅ Floor created:', createdFloor);
 
 			setFilterFloor(floorNum.toString());
-			alert(
-				`✅ Lantai ${floorNum} berhasil ditambahkan!\n⚠️ Lantai masih kosong. Silakan tambahkan meja terlebih dahulu.`
+			showToast(
+				`Lantai ${floorNum} berhasil ditambahkan! Silakan tambahkan meja.`,
+				'success'
 			);
 		} catch (error) {
 			console.error('❌ Failed to add floor:', error);
-			alert(`❌ Gagal menambah lantai ${floorNum}: ${error.message}`);
+			showToast(`Gagal menambah lantai ${floorNum}: ${error.message}`, 'error');
 		}
 	};
 
@@ -257,13 +258,13 @@ const EditLayoutPage = ({
 			// Get floor object from floors array
 			const floorObj = floors.find((f) => f.number === floorNum);
 			if (!floorObj) {
-				alert(`❌ Lantai ${floorNum} tidak ditemukan`);
+				showToast(`Lantai ${floorNum} tidak ditemukan`, 'error');
 				return;
 			}
 
 			// Validasi: minimal harus ada 1 floor
 			if (floors.length <= 1) {
-				alert('❌ Tidak bisa menghapus! Minimal harus ada 1 lantai.');
+				showToast('Tidak bisa menghapus! Minimal harus ada 1 lantai.', 'error');
 				return;
 			}
 
@@ -289,10 +290,10 @@ const EditLayoutPage = ({
 				}
 			}
 
-			alert(`✅ Lantai ${floorNum} berhasil dihapus!`);
+			showToast(`Lantai ${floorNum} berhasil dihapus!`, 'success');
 		} catch (error) {
 			console.error('Failed to delete floor:', error);
-			alert(`❌ Gagal menghapus lantai ${floorNum}`);
+			showToast(`Gagal menghapus lantai ${floorNum}`, 'error');
 		}
 	};
 

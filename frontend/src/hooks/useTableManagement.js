@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { showToast } from '../components/Toast/ToastContainer';
 
 export const useTableManagement = (
 	localTables,
@@ -51,7 +52,7 @@ export const useTableManagement = (
 			isNaN(newTableNumber) ||
 			parseInt(newTableNumber) <= 0
 		) {
-			alert('⚠️ Nomor meja harus berupa angka positif');
+			showToast('⚠️ Nomor meja harus berupa angka positif');
 			return;
 		}
 
@@ -60,7 +61,7 @@ export const useTableManagement = (
 			isNaN(newTableCapacity) ||
 			parseInt(newTableCapacity) <= 0
 		) {
-			alert('⚠️ Kapasitas harus berupa angka positif');
+			showToast('⚠️ Kapasitas harus berupa angka positif');
 			return;
 		}
 
@@ -73,7 +74,7 @@ export const useTableManagement = (
 		);
 
 		if (existingTable) {
-			alert(`⚠️ Nomor meja ${tableNum} sudah ada di Lantai ${floorNum}!`);
+			showToast(`⚠️ Nomor meja ${tableNum} sudah ada di Lantai ${floorNum}!`);
 			return;
 		}
 
@@ -99,7 +100,7 @@ export const useTableManagement = (
 			}
 		} catch (error) {
 			console.error('❌ Failed to add table from modal:', error);
-			alert('❌ Gagal menambahkan meja: ' + error.message);
+			showToast('❌ Gagal menambahkan meja: ' + error.message);
 		}
 	};
 
@@ -122,7 +123,7 @@ export const useTableManagement = (
 			isNaN(editTableNumber) ||
 			parseInt(editTableNumber) <= 0
 		) {
-			alert('⚠️ Nomor meja harus berupa angka positif');
+			showToast('⚠️ Nomor meja harus berupa angka positif');
 			return;
 		}
 
@@ -131,7 +132,7 @@ export const useTableManagement = (
 			isNaN(editTableCapacity) ||
 			parseInt(editTableCapacity) <= 0
 		) {
-			alert('⚠️ Kapasitas harus berupa angka positif');
+			showToast('⚠️ Kapasitas harus berupa angka positif');
 			return;
 		}
 
@@ -147,7 +148,7 @@ export const useTableManagement = (
 		);
 
 		if (existingTable) {
-			alert(
+			showToast(
 				`⚠️ Nomor meja ${tableNum} sudah ada di Lantai ${editingTable.floor}!`
 			);
 			return;
@@ -179,7 +180,7 @@ export const useTableManagement = (
 	const handleDeleteTable = (tableId) => {
 		// Validasi: minimal harus ada 1 meja
 		if (localTables.length <= 1) {
-			alert('❌ Tidak bisa menghapus! Minimal harus ada 1 meja.');
+			showToast('Tidak bisa menghapus! Minimal harus ada 1 meja.');
 			return;
 		}
 

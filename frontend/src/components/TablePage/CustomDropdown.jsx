@@ -53,12 +53,12 @@ const CustomDropdown = ({
 			{/* DROPDOWN MENU */}
 			<div
 				className={`
-          absolute left-0 right-0 mt-2 bg-secondary rounded-2xl shadow-xl 
+          absolute left-0 right-0 mt-2 bg-secondary rounded-xl shadow-xl
           border border-primary/55 z-50 overflow-y-auto
           transition-all duration-300 
           ${
 						isOpen
-							? 'opacity-100 max-h-72 visible'
+							? 'opacity-100 max-h-46 visible'
 							: 'opacity-0 max-h-0 invisible'
 					}
         `}>
@@ -72,7 +72,7 @@ const CustomDropdown = ({
 								setIsOpen(false);
 							}}
 							className={`w-full text-left px-4 py-2 font-semibold 
-                transition-colors duration-200  text-sm
+                transition-colors duration-200 text-sm
                 ${
 									value === option.value
 										? 'bg-primary text-secondary shadow-inner'

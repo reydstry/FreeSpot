@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { showToast } from '../components/Toast/ToastContainer';
 
 export const useCanvasInteractions = (
 	canvasRef,
@@ -194,11 +195,6 @@ export const useCanvasInteractions = (
 			const localX = centerX + dx * cos - dy * sin;
 			const localY = centerY + dx * sin + dy * cos;
 
-			const origWidth = origX2 - origX1;
-			const origHeight = origY2 - origY1;
-			const origCenterX = (origX1 + origX2) / 2;
-			const origCenterY = (origY1 + origY2) / 2;
-
 			let newCoords = [origX1, origY1, origX2, origY2];
 
 			switch (resizeHandle) {
@@ -379,7 +375,7 @@ export const useCanvasInteractions = (
 					})
 					.catch((error) => {
 						console.error('❌ Failed to add table from canvas:', error);
-						alert('❌ Gagal menambahkan meja: ' + error.message);
+						showToast(`Gagal menambahkan meja: ${error.message}`, 'error');
 					});
 			}
 			setCurrentRect(null);

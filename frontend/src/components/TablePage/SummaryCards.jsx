@@ -45,8 +45,7 @@ const SummaryCards = ({ tables }) => {
 							border border-white/20
 							text-white rounded-2xl p-6 shadow-lg hover:shadow-2xl
 							relative overflow-hidden
-							transition-all duration-300
-							shine-effect`}>
+							transition-all duration-300`}>
 						<div className='shine-animation'></div>
 						<div className='flex items-center gap-2 mb-3'>
 							<div className='w-3 h-3 rounded-full bg-white/30'></div>

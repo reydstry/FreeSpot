@@ -7,6 +7,7 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { cctvAPI } from '../services/api';
+import { showToast } from '../components/Toast/ToastContainer';
 
 const SettingsPage = ({ tables = [], floors = [] }) => {
 	const STORAGE_KEY = 'freespot_cctv_settings';
@@ -125,14 +126,14 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 		});
 	}, [floors.length, tables.length]);
 
-	// Tambah feed untuk lantai tertentu
+	// Tambah atau update feed untuk lantai tertentu (hanya 1 CCTV per lantai)
 	const handleAddFeed = async (floor) => {
 		const url = inputs[floor].trim();
 		if (!url) return;
 
 		// Validasi sederhana URL
 		if (!url.startsWith('http') && !url.startsWith('rtsp')) {
-			alert('URL harus dimulai dengan http/https/rtsp');
+			showToast('URL harus dimulai dengan http/https/rtsp', 'warning');
 			return;
 		}
 
@@ -146,33 +147,63 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 			console.log('✅ Found floor object:', floorObj);
 
 			if (!floorObj) {
-				alert(
-					`Floor ${floorNumber} not found in database. Available floors: ${floors.map((f) => f.number).join(', ')}`
+				showToast(
+					`Floor ${floorNumber} not found. Available floors: ${floors.map((f) => f.number).join(', ')}`,
+					'error'
 				);
 				return;
 			}
 
-			// Save to DB
-			const newStream = await cctvAPI.create({
-				name: `CCTV ${floor}-${cctvFeeds[floor].length + 1}`,
-				floor_id: floorObj.id,
-				url: url,
-				is_active: true,
-			});
+			// Jika sudah ada feed, update yang existing; jika belum, create baru
+			const existingFeed = cctvFeeds[floor]?.[0];
 
-			// Update local state
-			setCctvFeeds((prev) => ({
-				...prev,
-				[floor]: [
-					...prev[floor],
-					{
-						id: newStream.id,
-						url: newStream.url,
-						name: newStream.name,
-						is_active: newStream.is_active,
-					},
-				],
-			}));
+			if (existingFeed && existingFeed.id) {
+				// Update existing feed
+				await cctvAPI.update(existingFeed.id, {
+					name: `CCTV Lantai ${floor}`,
+					floor_id: floorObj.id,
+					url: url,
+					is_active: true,
+				});
+
+				// Update local state
+				setCctvFeeds((prev) => ({
+					...prev,
+					[floor]: [
+						{
+							id: existingFeed.id,
+							url: url,
+							name: `CCTV Lantai ${floor}`,
+							is_active: true,
+						},
+					],
+				}));
+
+				showToast('CCTV stream berhasil diperbarui', 'success');
+			} else {
+				// Create new feed
+				const newStream = await cctvAPI.create({
+					name: `CCTV Lantai ${floor}`,
+					floor_id: floorObj.id,
+					url: url,
+					is_active: true,
+				});
+
+				// Update local state (replace, not append)
+				setCctvFeeds((prev) => ({
+					...prev,
+					[floor]: [
+						{
+							id: newStream.id,
+							url: newStream.url,
+							name: newStream.name,
+							is_active: newStream.is_active,
+						},
+					],
+				}));
+
+				showToast('CCTV stream berhasil ditambahkan', 'success');
+			}
 
 			setInputs((prev) => ({ ...prev, [floor]: '' }));
 			setSaveStatus('saved');
@@ -181,8 +212,8 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 			// Trigger storage event untuk notify TablePage
 			window.dispatchEvent(new Event('cctv-updated'));
 		} catch (error) {
-			console.error('Failed to add CCTV stream:', error);
-			alert('Gagal menambahkan CCTV stream: ' + error.message);
+			console.error('Failed to add/update CCTV stream:', error);
+			showToast('Gagal menyimpan CCTV stream: ' + error.message, 'error');
 			setSaveStatus('');
 		}
 	};
@@ -203,7 +234,7 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 			}));
 		} catch (error) {
 			console.error('Failed to delete CCTV stream:', error);
-			alert('Gagal menghapus CCTV stream: ' + error.message);
+			showToast('Gagal menghapus CCTV stream: ' + error.message, 'error');
 		}
 	};
 
@@ -225,7 +256,7 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 				localStorage.removeItem(STORAGE_KEY);
 			} catch (error) {
 				console.error('Failed to reset CCTV settings:', error);
-				alert('Gagal menghapus semua CCTV: ' + error.message);
+				showToast('Gagal menghapus semua CCTV: ' + error.message, 'error');
 			}
 		}
 	};
@@ -294,11 +325,14 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 									Lantai {floor}
 								</h3>
 								<p className='text-sm opacity-90'>
-									{cctvFeeds[floor]?.length || 0} feed terdaftar
+									{cctvFeeds[floor]?.length > 0
+										? '1 CCTV aktif'
+										: 'Belum ada CCTV'}
 								</p>
 							</div>
 
-							<div className='p-4 space-y-4'>                         
+							<div className='p-4 space-y-4'>
+								{/* Input untuk set/update CCTV URL */}
 								<div className='space-y-2'>
 									<label className='text-sm font-semibold text-primary flex items-center gap-1'>
 										<LinkIcon size={14} />
@@ -322,41 +356,45 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 										/>
 										<button
 											onClick={() => handleAddFeed(floor)}
-											disabled={!inputs[floor]?.trim()}
+											disabled={
+												saveStatus === 'saving' || !inputs[floor]?.trim()
+											}
 											className='px-4 py-2 rounded-xl bg-success text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-success-dark hover:scale-105 active:scale-95 transition-all'>
-											+
+											{cctvFeeds[floor]?.length > 0 ? '✓' : '+'}
 										</button>
 									</div>
+									{cctvFeeds[floor]?.length > 0 && (
+										<p className='text-xs text-gray-500'>
+											Sudah ada CCTV. Masukkan URL baru untuk mengganti.
+										</p>
+									)}
 								</div>
 
+								{/* Tampilkan CCTV yang aktif (hanya 1) */}
 								{cctvFeeds[floor]?.length > 0 ? (
-									<div className='space-y-2 max-h-64 overflow-y-auto'>
+									<div className='space-y-2'>
 										<p className='text-xs font-semibold text-gray-500 uppercase'>
-											Daftar Feed:
+											CCTV Aktif:
 										</p>
-										{cctvFeeds[floor].map((stream, idx) => (
+										{cctvFeeds[floor].slice(0, 1).map((stream, idx) => (
 											<div
 												key={stream.id || idx}
-												className='flex items-start gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200 group hover:border-danger/30 transition-colors'>
+												className='flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200'>
 												<div className='flex-1 min-w-0'>
-													<p className='text-xs font-semibold text-gray-800 mb-1'>
-														{stream.name || `Feed ${idx + 1}`}
+													<p className='text-sm font-semibold text-gray-800 mb-1'>
+														{stream.name || `CCTV Lantai ${floor}`}
 													</p>
 													<p className='text-xs font-mono text-gray-600 truncate'>
 														{stream.url || stream}
 													</p>
-													<span
-														className={`inline-block mt-1 text-xs px-2 py-0.5 rounded ${
-															stream.is_active !== false
-																? 'bg-green-100 text-green-700'
-																: 'bg-gray-200 text-gray-600'
-														}`}>
-														{stream.is_active !== false ? 'Active' : 'Inactive'}
+													<span className='inline-block mt-1 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700'>
+														Active
 													</span>
 												</div>
 												<button
 													onClick={() => handleRemoveFeed(floor, idx)}
-													className='text-danger hover:bg-danger/10 p-1 rounded transition-colors shrink-0'>
+													className='text-danger hover:bg-danger/10 p-1 rounded transition-colors shrink-0'
+													title='Hapus CCTV'>
 													<Trash2 size={14} />
 												</button>
 											</div>
@@ -368,7 +406,7 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 											size={32}
 											className='mx-auto mb-2 opacity-50'
 										/>
-										<p className='text-sm'>Belum ada feed</p>
+										<p className='text-sm'>Belum ada CCTV</p>
 									</div>
 								)}
 							</div>

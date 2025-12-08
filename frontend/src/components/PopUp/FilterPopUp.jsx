@@ -12,6 +12,7 @@ const FilterModal = ({
 	onSortOrderChange,
 	onReset,
 	onApply,
+	isLoading = false,
 }) => {
 	if (!isOpen) return null;
 

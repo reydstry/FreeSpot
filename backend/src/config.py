@@ -3,8 +3,6 @@ FreeSpot Backend - Configuration Settings
 """
 
 from pydantic_settings import BaseSettings
-from typing import Optional
-import os
 
 
 class Settings(BaseSettings):
@@ -14,7 +12,7 @@ class Settings(BaseSettings):
     # Detection Settings
     DETECTION_INTERVAL: int = 1  # seconds - real-time detection
     DETECTION_CONFIDENCE: float = 0.5
-    YOLO_MODEL: str = "yolo11s.pt"  # Using the small model for faster detection
+    YOLO_MODEL: str = "yolo11l.pt"  # Using the small model for faster detection
     
     # Server Settings
     HOST: str = "0.0.0.0"

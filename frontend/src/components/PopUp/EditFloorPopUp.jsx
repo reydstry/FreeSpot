@@ -1,4 +1,6 @@
 import React from 'react';
+import { showToast } from '../Toast/ToastContainer';
+import swal from 'sweetalert2';
 
 const EditFloorModal = ({
 	isOpen,
@@ -18,12 +20,12 @@ const EditFloorModal = ({
 			existingFloorNums.length > 0 ? Math.max(...existingFloorNums) + 1 : 1;
 
 		if (nextFloorNum <= 0) {
-			alert('⚠️ Nomor lantai harus lebih dari 0');
+			showToast('Nomor lantai harus lebih dari 0', 'warning');
 			return;
 		}
 
 		if (existingFloorNums.includes(nextFloorNum)) {
-			alert('⚠️ Lantai sudah ada');
+			showToast('Lantai sudah ada', 'warning');
 			return;
 		}
 
@@ -31,13 +33,20 @@ const EditFloorModal = ({
 	};
 
 	const handleDeleteFloor = (floorNum) => {
-		if (
-			confirm(
-				`Hapus Lantai ${floorNum}? Semua meja di lantai ini akan ikut terhapus.`
-			)
-		) {
-			onDeleteFloor(floorNum);
-		}
+		swal.fire({
+			title: "Hapus Data?",
+			text: "Data yang dihapus tidak dapat dikembalikan!",
+			icon: "warning",
+			showCancelButton: true,
+			confirmButtonText: "Hapus",
+			cancelButtonText: "Batal",
+			confirmButtonColor: "#e63946",
+		}).then((result) => {
+			if (result.isConfirmed) {
+				onDeleteFloor(floorNum);
+				console.log("Dihapus!");
+			}
+		});
 	};
 
 	return (
@@ -94,12 +103,11 @@ const EditFloorModal = ({
 					</h4>
 					<div className='flex'>
 						<button
-						onClick={handleAddFloor}
-						className='flex-1 px-4 py-2 bg-secondary hover:bg-secondary-dark text-primary rounded-xl font-semibold transition-all duration-200 active:scale-95'>
-						Tambah
-					</button>
+							onClick={handleAddFloor}
+							className='flex-1 px-4 py-2 bg-secondary hover:bg-secondary-dark text-primary rounded-xl font-semibold transition-all duration-200 active:scale-95'>
+							Tambah
+						</button>
 					</div>
-					
 				</div>
 			</div>
 		</div>

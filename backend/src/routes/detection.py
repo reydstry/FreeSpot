@@ -44,3 +44,9 @@ async def get_floor_detection_status(floor_id: int, db: Session = Depends(get_db
 async def get_detection_result(floor_id: int):
     """Get latest detection result for a floor"""
     return DetectionController.get_result(floor_id)
+
+
+@router.get("/system-info")
+async def get_system_info():
+    """Get detailed system and GPU information"""
+    return DetectionController.get_system_info()

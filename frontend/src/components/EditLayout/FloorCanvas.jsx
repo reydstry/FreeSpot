@@ -225,10 +225,7 @@ const FloorCanvas = ({
 
 			<div className='bg-secondary rounded-2xl shadow-lg p-6 h-[618px] w-[80%]'>
 				<div className='mb-3 p-3 bg-primary-dark/10 border-l-4 border-primary rounded-lg'>
-					<p className='text-sm text-primary font-semibold'>
-						💡 <strong>Cara Pakai:</strong>
-					</p>
-					<ul className='text-xs text-primary/80 mt-2 space-y-1 ml-4 list-disc'>
+					<ul className='text-xs text-primary/80 space-y-1 ml-4 list-disc'>
 						<li>
 							<strong>Drag meja</strong> untuk pindahkan posisi
 						</li>

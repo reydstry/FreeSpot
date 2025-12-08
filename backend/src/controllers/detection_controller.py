@@ -119,3 +119,8 @@ class DetectionController:
             )
         
         return result
+    
+    @staticmethod
+    def get_system_info():
+        """Get detailed system and GPU information"""
+        return detection_service.get_system_info()
