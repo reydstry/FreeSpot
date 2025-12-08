@@ -10,19 +10,6 @@ psycopg2-binary
 asyncpg
 databases
 
-# AI/ML - YOLOv11
-ultralytics
-opencv-python
-numpy
-pillow
-
-# GPU Support (optional - akan fallback ke CPU jika tidak tersedia)
-# torch with CUDA support - uncomment sesuai kebutuhan:
-# torch==2.1.2+cu121 --extra-index-url https://download.pytorch.org/whl/cu121  # NVIDIA CUDA 12.1
-# torch==2.1.2+rocm5.6 --extra-index-url https://download.pytorch.org/whl/rocm5.6  # AMD ROCm
-torch
-torchvision
-
 # Utilities
 python-dotenv
 pydantic
