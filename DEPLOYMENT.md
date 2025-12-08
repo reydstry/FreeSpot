@@ -1,192 +1,114 @@
-# FreeSpot Deployment Guide
+# FreeSpot Deployment Guide (Full Free)
 
-## Architecture Overview
+## Architecture
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │    Frontend     │────▶│   Backend API   │────▶│     ML API      │
-│    (Vercel)     │     │   (Railway)     │     │    (Render)     │
+│    (Vercel)     │     │   (Railway)     │     │ (HuggingFace)   │
+│      FREE       │     │      FREE       │     │      FREE       │
 └─────────────────┘     └────────┬────────┘     └─────────────────┘
                                  │
                         ┌────────▼────────┐
                         │   PostgreSQL    │
                         │   (Railway)     │
+                        │      FREE       │
                         └─────────────────┘
 ```
 
 ---
 
-## 1. Deploy PostgreSQL Database (Railway)
+## 1. Deploy ML API (Hugging Face Spaces) - PERTAMA
 
-### Steps:
+1. Buka https://huggingface.co → Login/Register
+2. Click avatar → **New Space**
+3. Settings:
+   - **Space name**: `freespot-ml-api`
+   - **License**: MIT
+   - **SDK**: `Docker`
+   - **Hardware**: `CPU basic` (FREE)
+4. Setelah Space dibuat, upload files dari folder `ml_api/`:
+   - `Dockerfile`
+   - `main.py`
+   - `requirements.txt`
+   - `README.md`
+5. Tunggu build selesai (~5-10 menit)
+6. Catat URL: `https://USERNAME-freespot-ml-api.hf.space`
 
-1. Buka [Railway](https://railway.app) dan login
-2. Click **"New Project"** → **"Provision PostgreSQL"**
-3. Tunggu database selesai di-provision
-4. Klik PostgreSQL service → tab **"Variables"**
-5. Copy value `DATABASE_URL` (format: `postgresql://user:pass@host:port/db`)
-
----
-
-## 2. Deploy Backend API (Railway)
-
-### Steps:
-
-1. Di project Railway yang sama, click **"New"** → **"GitHub Repo"**
-2. Connect repo GitHub kamu, pilih folder **`backend`** sebagai root directory
-3. Atau gunakan **"Deploy from GitHub"** dengan settings:
-   - **Root Directory**: `backend`
-   - **Build Command**: _(kosongkan, Railway auto-detect Dockerfile)_
-   - **Start Command**: _(kosongkan, sudah di Dockerfile)_
-
-### Environment Variables:
-
-Tambahkan di tab **Variables**:
-
-| Variable       | Value                                                          |
-| -------------- | -------------------------------------------------------------- |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (reference ke PostgreSQL service) |
-| `ML_API_URL`   | `https://your-ml-api.onrender.com` (isi setelah deploy ML API) |
-| `HOST`         | `0.0.0.0`                                                      |
-| `PORT`         | `8000`                                                         |
-| `DEBUG`        | `false`                                                        |
-| `RELOAD`       | `false`                                                        |
-
-### Generate Domain:
-
-1. Klik backend service → **Settings** → **Networking**
-2. Click **"Generate Domain"**
-3. Catat URL (contoh: `freespot-backend.up.railway.app`)
+**Test:**
+```bash
+curl https://USERNAME-freespot-ml-api.hf.space/health
+```
 
 ---
 
-## 3. Deploy ML API (Render)
+## 2. Deploy PostgreSQL (Railway)
 
-### Steps:
+1. Buka https://railway.app → Login
+2. **New Project** → **Provision PostgreSQL**
+3. Klik PostgreSQL → **Variables** → Copy `DATABASE_URL`
 
-1. Buka [Render](https://render.com) dan login
-2. Click **"New"** → **"Web Service"**
-3. Connect repo GitHub kamu
-4. Settings:
-   - **Name**: `freespot-ml-api`
-   - **Root Directory**: `ml_api`
-   - **Runtime**: `Docker`
-   - **Instance Type**: `Starter` atau lebih tinggi (perlu RAM untuk YOLO)
+---
 
-### Environment Variables:
+## 3. Deploy Backend (Railway)
 
-| Variable | Value  |
-| -------- | ------ |
-| `PORT`   | `9000` |
+1. Di project sama, **New** → **GitHub Repo**
+2. Pilih repo `FreeSpot`, **Root Directory**: `backend`
+3. Set **Variables**:
 
-### Tunggu Build:
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `ML_API_URL` | `https://USERNAME-freespot-ml-api.hf.space` |
+| `DEBUG` | `false` |
 
-- Build pertama akan lama (~10-15 menit) karena download YOLO model
-- Setelah deploy, catat URL (contoh: `https://freespot-ml-api.onrender.com`)
-- **Update** `ML_API_URL` di Railway backend dengan URL ini
+4. **Settings** → **Networking** → **Generate Domain**
+5. Catat URL backend (contoh: `https://freespot-xxx.up.railway.app`)
 
 ---
 
 ## 4. Deploy Frontend (Vercel)
 
-### Steps:
-
-1. Buka [Vercel](https://vercel.com) dan login
-2. Click **"Add New"** → **"Project"**
-3. Import repo GitHub kamu
-4. Settings:
-   - **Framework Preset**: `Vite`
+1. Buka https://vercel.com → Login
+2. **New Project** → Import `FreeSpot`
+3. Settings:
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
+   - **Framework**: `Vite`
+4. **Environment Variables**:
 
-### Environment Variables:
+| Variable | Value |
+|----------|-------|
+| `VITE_API_BASE_URL` | `https://freespot-xxx.up.railway.app` |
 
-| Variable            | Value                                                                |
-| ------------------- | -------------------------------------------------------------------- |
-| `VITE_API_BASE_URL` | `https://freespot-backend.up.railway.app` (URL backend dari Railway) |
-
-### Deploy:
-
-Click **"Deploy"** dan tunggu selesai.
+5. Deploy
 
 ---
 
-## 5. Post-Deployment Checklist
+## Cost Summary (ALL FREE)
 
-### Verify Services:
-
-- [ ] Backend health: `https://your-backend.railway.app/health`
-- [ ] ML API health: `https://your-ml-api.onrender.com/health`
-- [ ] Frontend loads properly
-
-### Update CORS (jika perlu):
-
-Jika frontend tidak bisa connect, tambahkan domain frontend ke CORS di `backend/main.py`:
-
-```python
-origins = [
-    "https://your-frontend.vercel.app",
-    ...
-]
-```
-
-### Initialize Database:
-
-Database tables akan auto-create saat backend pertama kali start (via SQLAlchemy `create_all`).
+| Service | Platform | Limit |
+|---------|----------|-------|
+| Frontend | Vercel | Unlimited |
+| Backend | Railway | 500 hours/month |
+| Database | Railway | Shared dengan backend |
+| ML API | Hugging Face | Free (sleep after idle) |
 
 ---
 
 ## Troubleshooting
 
-### Backend tidak connect ke Database
+### ML API cold start
+- HF free tier sleep setelah idle
+- Request pertama ~30-60 detik untuk wake up
 
-- Pastikan `DATABASE_URL` sudah benar
-- Check format: `postgresql://user:pass@host:port/dbname`
+### Railway hours limit
+- 500 hours/month shared antara backend + database
+- Jika habis, service pause sampai bulan depan
 
-### ML API timeout / cold start
+### Backend tidak connect ML API
+- Pastikan URL benar: `https://USERNAME-freespot-ml-api.hf.space`
+- Cek ML API running dengan `/health`
 
-- Render free tier memiliki cold start
-- Pertama kali hit `/detect` bisa lambat karena load YOLO model
-
-### Frontend tidak bisa fetch API
-
-- Check CORS settings di backend
+### Frontend CORS error
+- Backend sudah set `allow_origins=["*"]`
 - Pastikan `VITE_API_BASE_URL` tidak ada trailing slash
-
-### Image build gagal di Railway
-
-- Pastikan `backend/Dockerfile` tidak ada dependency ML (torch, ultralytics)
-- Cek logs di Railway dashboard
-
----
-
-## Local Development
-
-### Backend:
-
-```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env dengan DATABASE_URL lokal
-uvicorn main:app --reload
-```
-
-### ML API:
-
-```bash
-cd ml_api
-pip install -r requirements.txt
-uvicorn main:app --port 9000 --reload
-```
-
-### Frontend:
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-# Edit .env dengan VITE_API_BASE_URL=http://localhost:8000
-npm run dev
-```

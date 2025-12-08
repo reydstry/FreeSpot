@@ -5,6 +5,4 @@ opencv-python-headless
 numpy
 pillow
 pydantic
-python-dotenv
 python-multipart
-httpx
