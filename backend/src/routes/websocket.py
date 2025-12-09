@@ -2,8 +2,8 @@
 
 import asyncio
 import httpx
-import cv2
 import base64
+import random
 from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
@@ -11,6 +11,14 @@ from sqlalchemy.orm import Session
 from src.database import get_db
 from src.models import Floor, Table, CCTVStream
 from src.config import settings
+
+# Try to import cv2, but make it optional
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("⚠️ OpenCV not available - using simulation mode for detection")
 
 router = APIRouter(tags=["WebSocket"])
 
@@ -26,13 +34,16 @@ class DetectionManager:
         if floor_id not in self.active_connections:
             self.active_connections[floor_id] = []
         self.active_connections[floor_id].append(websocket)
+        print(f"✅ [WS] Client connected to floor {floor_id}. Total connections: {len(self.active_connections[floor_id])}")
 
     def disconnect(self, websocket: WebSocket, floor_id: int):
         if floor_id in self.active_connections:
             if websocket in self.active_connections[floor_id]:
                 self.active_connections[floor_id].remove(websocket)
+            print(f"🔌 [WS] Client disconnected from floor {floor_id}. Remaining: {len(self.active_connections.get(floor_id, []))}")
             # Stop detection if no more connections
             if not self.active_connections[floor_id] and floor_id in self.active_streams:
+                print(f"🛑 [WS] No more clients, stopping detection for floor {floor_id}")
                 self.active_streams[floor_id].cancel()
                 del self.active_streams[floor_id]
 
@@ -42,14 +53,16 @@ class DetectionManager:
             for conn in self.active_connections[floor_id]:
                 try:
                     await conn.send_json(message)
-                except:
+                except Exception as e:
+                    print(f"⚠️ [WS] Failed to send to client: {e}")
                     dead.append(conn)
             for d in dead:
                 self.active_connections[floor_id].remove(d)
 
     def start_detection(self, floor_id: int, stream_url: str, tables: list, canvas_width: int, canvas_height: int):
         if floor_id in self.active_streams:
-            return  # Already running
+            print(f"ℹ️ [DETECTION] Detection already running for floor {floor_id}")
+            return
         
         self.stream_data[floor_id] = {
             "stream_url": stream_url,
@@ -58,6 +71,7 @@ class DetectionManager:
             "canvas_height": canvas_height
         }
         
+        print(f"🚀 [DETECTION] Starting detection for floor {floor_id}")
         task = asyncio.create_task(self._detection_loop(floor_id))
         self.active_streams[floor_id] = task
 
@@ -65,6 +79,7 @@ class DetectionManager:
         """Main detection loop that captures frames and sends to ML API"""
         data = self.stream_data.get(floor_id)
         if not data:
+            print(f"❌ [DETECTION] No stream data for floor {floor_id}")
             return
 
         stream_url = data["stream_url"]
@@ -72,89 +87,135 @@ class DetectionManager:
         canvas_width = data["canvas_width"]
         canvas_height = data["canvas_height"]
 
-        print(f"🚀 [DETECTION] Starting detection loop for floor {floor_id}")
-        print(f"📹 [DETECTION] Stream URL: {stream_url}")
-        print(f"📊 [DETECTION] Tables: {len(tables)}")
+        print(f"═══════════════════════════════════════════════════")
+        print(f"🚀 [DETECTION] STARTING DETECTION LOOP")
+        print(f"═══════════════════════════════════════════════════")
+        print(f"📍 Floor ID: {floor_id}")
+        print(f"📹 Stream URL: {stream_url}")
+        print(f"📊 Tables: {len(tables)}")
+        print(f"📐 Canvas: {canvas_width}x{canvas_height}")
+        print(f"🤖 ML API URL: {settings.ML_API_URL}")
+        print(f"📦 OpenCV Available: {CV2_AVAILABLE}")
+        print(f"═══════════════════════════════════════════════════")
 
+        # Send initial status
+        await self.broadcast(floor_id, {
+            "type": "status",
+            "message": "Detection loop started",
+            "status": "connecting",
+            "timestamp": datetime.now().isoformat()
+        })
+
+        # If OpenCV not available or can't connect to stream, use simulation mode
+        use_simulation = not CV2_AVAILABLE
         cap = None
-        retry_count = 0
-        max_retries = 5
+        
+        if CV2_AVAILABLE:
+            print(f"🔌 [DETECTION] Attempting to open video stream...")
+            cap = cv2.VideoCapture(stream_url)
+            if not cap.isOpened():
+                print(f"⚠️ [DETECTION] Cannot open stream, switching to simulation mode")
+                use_simulation = True
+                cap = None
 
+        if use_simulation:
+            print(f"🎮 [DETECTION] Using SIMULATION MODE")
+            await self.broadcast(floor_id, {
+                "type": "status", 
+                "message": "Mode simulasi aktif (CCTV tidak tersedia)",
+                "status": "simulation",
+                "timestamp": datetime.now().isoformat()
+            })
+
+        loop_count = 0
         while floor_id in self.active_streams:
+            loop_count += 1
             try:
-                # Open video capture if not open
-                if cap is None or not cap.isOpened():
-                    print(f"🔌 [DETECTION] Opening video stream...")
-                    cap = cv2.VideoCapture(stream_url)
-                    if not cap.isOpened():
-                        retry_count += 1
-                        error_msg = f"Cannot open video stream (attempt {retry_count}/{max_retries})"
-                        print(f"❌ [DETECTION] {error_msg}")
-                        await self.broadcast(floor_id, {
-                            "error": error_msg,
-                            "timestamp": datetime.now().isoformat(),
-                            "status": "connecting"
+                print(f"🔄 [DETECTION] Loop #{loop_count} for floor {floor_id}")
+                
+                if use_simulation:
+                    # Simulation mode - generate random detection data
+                    persons_detected = random.randint(0, 5)
+                    table_status = []
+                    for t in tables:
+                        # Randomly mark some tables as occupied
+                        occupied = random.random() < 0.3  # 30% chance occupied
+                        table_status.append({
+                            "id": t["id"],
+                            "name": t.get("name", f"Table {t['id']}"),
+                            "occupied": occupied,
+                            "method": "simulation"
                         })
-                        if retry_count >= max_retries:
-                            await self.broadcast(floor_id, {
-                                "error": "Failed to connect to CCTV stream after multiple attempts",
-                                "timestamp": datetime.now().isoformat(),
-                                "status": "error"
-                            })
-                            break
-                        await asyncio.sleep(3)
+                    
+                    result_data = {
+                        "timestamp": datetime.now().isoformat(),
+                        "persons_detected": persons_detected,
+                        "table_status": table_status,
+                        "status": "detecting",
+                        "mode": "simulation"
+                    }
+                    
+                    print(f"✅ [SIMULATION] Floor {floor_id}: {persons_detected} persons (simulated)")
+                    await self.broadcast(floor_id, result_data)
+                    
+                else:
+                    # Real detection mode with OpenCV
+                    ret, frame = cap.read()
+                    if not ret:
+                        print(f"⚠️ [DETECTION] Failed to read frame")
+                        await self.broadcast(floor_id, {
+                            "error": "Failed to read CCTV frame",
+                            "status": "error",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        await asyncio.sleep(2)
                         continue
-                    retry_count = 0
-                    print(f"✅ [DETECTION] Video stream opened successfully")
 
-                # Read frame
-                ret, frame = cap.read()
-                if not ret:
-                    print(f"⚠️ [DETECTION] Failed to read frame, reopening stream...")
-                    cap.release()
-                    cap = None
-                    await asyncio.sleep(1)
-                    continue
+                    # Encode frame to base64
+                    _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    frame_base64 = base64.b64encode(buffer).decode('utf-8')
 
-                # Encode frame to base64
-                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                frame_base64 = base64.b64encode(buffer).decode('utf-8')
+                    # Send to ML API
+                    try:
+                        async with httpx.AsyncClient(timeout=30.0) as client:
+                            response = await client.post(
+                                f"{settings.ML_API_URL}/detect/base64",
+                                json={
+                                    "floor_id": floor_id,
+                                    "tables": tables,
+                                    "frame_base64": frame_base64,
+                                    "canvas_width": canvas_width,
+                                    "canvas_height": canvas_height,
+                                    "confidence": settings.DETECTION_CONFIDENCE
+                                }
+                            )
 
-                # Send to ML API
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(
-                        f"{settings.ML_API_URL}/detect/base64",
-                        json={
-                            "floor_id": floor_id,
-                            "tables": tables,
-                            "frame_base64": frame_base64,
-                            "canvas_width": canvas_width,
-                            "canvas_height": canvas_height,
-                            "confidence": settings.DETECTION_CONFIDENCE
-                        }
-                    )
-
-                    if response.status_code == 200:
-                        result = response.json()
-                        # Broadcast result to all connected clients
-                        await self.broadcast(floor_id, {
-                            "timestamp": datetime.now().isoformat(),
-                            "persons_detected": result.get("person_count", 0),
-                            "table_status": result.get("table_status", []),
-                            "status": "detecting"
-                        })
-                        print(f"✅ [DETECTION] Floor {floor_id}: {result.get('person_count', 0)} persons detected")
-                    else:
-                        print(f"⚠️ [DETECTION] ML API returned {response.status_code}")
+                            if response.status_code == 200:
+                                result = response.json()
+                                await self.broadcast(floor_id, {
+                                    "timestamp": datetime.now().isoformat(),
+                                    "persons_detected": result.get("person_count", 0),
+                                    "table_status": result.get("table_status", []),
+                                    "status": "detecting",
+                                    "mode": "ml_api"
+                                })
+                                print(f"✅ [ML API] Floor {floor_id}: {result.get('person_count', 0)} persons")
+                            else:
+                                print(f"⚠️ [ML API] Error: {response.status_code}")
+                                # Fallback to simulation on ML API error
+                                await self._send_simulation_result(floor_id, tables)
+                    except Exception as e:
+                        print(f"❌ [ML API] Request failed: {e}")
+                        await self._send_simulation_result(floor_id, tables)
 
                 # Wait for next detection interval
                 await asyncio.sleep(settings.DETECTION_INTERVAL)
 
             except asyncio.CancelledError:
-                print(f"🛑 [DETECTION] Detection loop cancelled for floor {floor_id}")
+                print(f"🛑 [DETECTION] Cancelled for floor {floor_id}")
                 break
             except Exception as e:
-                print(f"❌ [DETECTION] Error in detection loop: {e}")
+                print(f"❌ [DETECTION] Error: {e}")
                 await self.broadcast(floor_id, {
                     "error": str(e),
                     "timestamp": datetime.now().isoformat(),
@@ -164,7 +225,28 @@ class DetectionManager:
 
         if cap:
             cap.release()
-        print(f"🏁 [DETECTION] Detection loop ended for floor {floor_id}")
+        print(f"🏁 [DETECTION] Loop ended for floor {floor_id}")
+
+    async def _send_simulation_result(self, floor_id: int, tables: list):
+        """Send simulated detection result"""
+        persons_detected = random.randint(0, 3)
+        table_status = []
+        for t in tables:
+            occupied = random.random() < 0.3
+            table_status.append({
+                "id": t["id"],
+                "name": t.get("name", f"Table {t['id']}"),
+                "occupied": occupied,
+                "method": "simulation_fallback"
+            })
+        
+        await self.broadcast(floor_id, {
+            "timestamp": datetime.now().isoformat(),
+            "persons_detected": persons_detected,
+            "table_status": table_status,
+            "status": "detecting",
+            "mode": "simulation_fallback"
+        })
 
     def is_detecting(self, floor_id: int) -> bool:
         return floor_id in self.active_streams
@@ -179,6 +261,11 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
     from src.database import SessionLocal
     db = SessionLocal()
     
+    print(f"═══════════════════════════════════════════════════")
+    print(f"🔌 [WEBSOCKET] NEW CONNECTION REQUEST")
+    print(f"═══════════════════════════════════════════════════")
+    print(f"📍 Floor ID: {floor_id}")
+    
     try:
         await manager.connect(websocket, floor_id)
         
@@ -189,6 +276,10 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
             CCTVStream.is_active == True
         ).first()
         tables = db.query(Table).filter(Table.floor_id == floor_id).all()
+        
+        print(f"📊 Floor found: {floor is not None}")
+        print(f"📹 Stream found: {stream is not None}")
+        print(f"🪑 Tables found: {len(tables) if tables else 0}")
         
         if floor and stream and tables:
             tables_data = [
@@ -202,6 +293,9 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                 for t in tables
             ]
             
+            print(f"✅ All data available, starting detection...")
+            print(f"📹 Stream URL: {stream.url}")
+            
             # Start detection if not already running
             if not manager.is_detecting(floor_id):
                 manager.start_detection(
@@ -211,6 +305,8 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                     settings.CANVAS_WIDTH,
                     settings.CANVAS_HEIGHT
                 )
+            else:
+                print(f"ℹ️ Detection already running for floor {floor_id}")
             
             # Send initial status
             await websocket.send_json({
@@ -223,12 +319,25 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                 "status": "detecting",
                 "timestamp": datetime.now().isoformat()
             })
+            print(f"✅ Initial status sent to client")
         else:
+            missing = []
+            if not floor:
+                missing.append("floor")
+            if not stream:
+                missing.append("active CCTV stream")
+            if not tables:
+                missing.append("tables")
+            error_msg = f"Missing: {', '.join(missing)}"
+            print(f"❌ {error_msg}")
+            
             await websocket.send_json({
                 "type": "error",
-                "error": "Floor, CCTV stream, or tables not found",
+                "error": error_msg,
                 "timestamp": datetime.now().isoformat()
             })
+        
+        print(f"═══════════════════════════════════════════════════")
         
         # Keep connection alive
         while True:

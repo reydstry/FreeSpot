@@ -55,7 +55,13 @@ export const useWebSocket = (baseUrl, floors, onMessage) => {
 			if (attempts >= WS_MAX_RECONNECT_ATTEMPTS) return;
 
 			isConnectingRef.current[floorId] = true;
-			const wsUrl = baseUrl.replace('http', 'ws');
+			// Convert HTTP(S) to WS(S) properly
+			let wsUrl = baseUrl;
+			if (wsUrl.startsWith('https://')) {
+				wsUrl = wsUrl.replace('https://', 'wss://');
+			} else if (wsUrl.startsWith('http://')) {
+				wsUrl = wsUrl.replace('http://', 'ws://');
+			}
 			const fullWsUrl = `${wsUrl}/ws/detection/${floorId}`;
 			console.log(
 				`🔌 [WS] Connecting to floor ${floorId} (attempt ${attempts + 1}/${WS_MAX_RECONNECT_ATTEMPTS})`

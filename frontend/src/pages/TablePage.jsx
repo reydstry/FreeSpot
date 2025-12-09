@@ -190,7 +190,13 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 		const connectToFloor = (floorId) => {
 			if (wsConnectionsRef.current[floorId]) return; // Already connected
 
-			const wsUrl = API_BASE_URL.replace('http', 'ws');
+			// Convert HTTP(S) to WS(S) properly
+			let wsUrl = API_BASE_URL;
+			if (wsUrl.startsWith('https://')) {
+				wsUrl = wsUrl.replace('https://', 'wss://');
+			} else if (wsUrl.startsWith('http://')) {
+				wsUrl = wsUrl.replace('http://', 'ws://');
+			}
 			const fullWsUrl = `${wsUrl}/ws/detection/${floorId}`;
 
 			console.log(`🔌 [WS] Connecting to floor ${floorId}:`, fullWsUrl);

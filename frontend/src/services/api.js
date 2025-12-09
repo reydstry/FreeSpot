@@ -144,7 +144,13 @@ export const detectionAPI = {
 	},
 
 	connectWebSocket(onMessage, floorId = null) {
-		const base = API_BASE_URL.replace('http', 'ws');
+		// Convert HTTP(S) to WS(S) properly
+		let base = API_BASE_URL;
+		if (base.startsWith('https://')) {
+			base = base.replace('https://', 'wss://');
+		} else if (base.startsWith('http://')) {
+			base = base.replace('http://', 'ws://');
+		}
 		const wsUrl = floorId
 			? `${base}/ws/detect?floor_id=${floorId}`
 			: `${base}/ws/detect`;
