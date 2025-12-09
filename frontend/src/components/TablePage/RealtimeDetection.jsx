@@ -151,7 +151,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			wsUrl = wsUrl.replace('http://', 'ws://');
 		}
 		const fullWsUrl = `${wsUrl}/ws/detection/${floor.id}`;
-		
+
 		console.log('═══════════════════════════════════════════════════');
 		console.log('🔌 [WEBSOCKET] CONNECTING TO DETECTION SERVER');
 		console.log('═══════════════════════════════════════════════════');
@@ -160,7 +160,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 		console.log('📍 Floor ID:', floor.id);
 		console.log('📍 Floor Name:', floor.name);
 		console.log('═══════════════════════════════════════════════════');
-		
+
 		setStatusMessage('Menghubungkan ke WebSocket...');
 		setConnectionStatus('connecting');
 
@@ -181,7 +181,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 			ws.onmessage = (event) => {
 				try {
 					const data = JSON.parse(event.data);
-					
+
 					console.log('═══════════════════════════════════════════════════');
 					console.log('📨 [WEBSOCKET] MESSAGE RECEIVED');
 					console.log('═══════════════════════════════════════════════════');
@@ -193,9 +193,15 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 						console.log('👥 Persons Detected:', data.persons_detected);
 					}
 					if (data.table_status) {
-						console.log('🪑 Tables Status:', data.table_status.length, 'tables');
-						data.table_status.forEach(t => {
-							console.log(`   - ${t.name}: ${t.occupied ? '🔴 OCCUPIED' : '🟢 AVAILABLE'}`);
+						console.log(
+							'🪑 Tables Status:',
+							data.table_status.length,
+							'tables'
+						);
+						data.table_status.forEach((t) => {
+							console.log(
+								`   - ${t.name}: ${t.occupied ? '🔴 OCCUPIED' : '🟢 AVAILABLE'}`
+							);
 						});
 					}
 					if (data.error) {
@@ -205,7 +211,9 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 
 					// Handle different message types
 					if (data.type === 'connected') {
-						console.log('🎉 [DETECTION] Server confirmed connection - detection starting!');
+						console.log(
+							'🎉 [DETECTION] Server confirmed connection - detection starting!'
+						);
 						setStatusMessage(
 							`✅ ${data.message || 'Detection sedang berjalan...'}`
 						);
@@ -239,68 +247,67 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 						console.log('📹 [DETECTION] Connecting to CCTV stream...');
 						setStatusMessage('📹 Menghubungkan ke CCTV...');
 					}
-				}
 
-				if (data.table_status) {
-					setDetectionData(data);
-					setConnectionStatus('connected');
+					if (data.table_status) {
+						setDetectionData(data);
+						setConnectionStatus('connected');
 
-					// Call parent callback to update table status in App state
-					if (onDetectionUpdate) {
-						console.log(
-							'🔄 [WEBSOCKET] Calling onDetectionUpdate with table_status'
-						);
-						onDetectionUpdate(data);
+						// Call parent callback to update table status in App state
+						if (onDetectionUpdate) {
+							console.log(
+								'🔄 [WEBSOCKET] Calling onDetectionUpdate with table_status'
+							);
+							onDetectionUpdate(data);
+						}
 					}
+				} catch (err) {
+					console.error('❌ [WEBSOCKET] Failed to parse message:', err);
+					console.error('Raw event data:', event.data);
 				}
-			} catch (err) {
-				console.error('❌ [WEBSOCKET] Failed to parse message:', err);
-				console.error('Raw event data:', event.data);
-			}
-		};
+			};
 
-		ws.onerror = (error) => {
-			console.log('═══════════════════════════════════════════════════');
-			console.error('❌ [WEBSOCKET] CONNECTION ERROR');
-			console.log('═══════════════════════════════════════════════════');
-			console.error('Error object:', error);
-			console.log('This usually means:');
-			console.log('1. Backend server is not running');
-			console.log('2. WebSocket URL is incorrect');
-			console.log('3. CORS issue');
-			console.log('4. Network connectivity problem');
-			console.log('═══════════════════════════════════════════════════');
+			ws.onerror = (error) => {
+				console.log('═══════════════════════════════════════════════════');
+				console.error('❌ [WEBSOCKET] CONNECTION ERROR');
+				console.log('═══════════════════════════════════════════════════');
+				console.error('Error object:', error);
+				console.log('This usually means:');
+				console.log('1. Backend server is not running');
+				console.log('2. WebSocket URL is incorrect');
+				console.log('3. CORS issue');
+				console.log('4. Network connectivity problem');
+				console.log('═══════════════════════════════════════════════════');
+				setConnectionStatus('error');
+				setStatusMessage('❌ Koneksi error. Mencoba ulang...');
+				setError('Connection error. Retrying...');
+			};
+
+			ws.onclose = (event) => {
+				console.log('═══════════════════════════════════════════════════');
+				console.log('🔌 [WEBSOCKET] CONNECTION CLOSED');
+				console.log('═══════════════════════════════════════════════════');
+				console.log('Close code:', event.code);
+				console.log('Close reason:', event.reason || 'No reason provided');
+				console.log('Was clean:', event.wasClean);
+				console.log('═══════════════════════════════════════════════════');
+
+				setConnectionStatus('disconnected');
+				setStatusMessage('Koneksi terputus. Menghubungkan ulang...');
+
+				// Auto-reconnect
+				console.log('🔄 [WEBSOCKET] Will attempt to reconnect in 3 seconds...');
+				reconnectTimeoutRef.current = setTimeout(() => {
+					console.log('🔄 [WEBSOCKET] Reconnecting...');
+					connectWebSocket();
+				}, 3000);
+			};
+
+			wsRef.current = ws;
+		} catch (err) {
+			console.error('❌ [WEBSOCKET] Failed to create WebSocket:', err);
+			setError('Failed to create WebSocket connection');
 			setConnectionStatus('error');
-			setStatusMessage('❌ Koneksi error. Mencoba ulang...');
-			setError('Connection error. Retrying...');
-		};
-
-		ws.onclose = (event) => {
-			console.log('═══════════════════════════════════════════════════');
-			console.log('🔌 [WEBSOCKET] CONNECTION CLOSED');
-			console.log('═══════════════════════════════════════════════════');
-			console.log('Close code:', event.code);
-			console.log('Close reason:', event.reason || 'No reason provided');
-			console.log('Was clean:', event.wasClean);
-			console.log('═══════════════════════════════════════════════════');
-			
-			setConnectionStatus('disconnected');
-			setStatusMessage('Koneksi terputus. Menghubungkan ulang...');
-
-			// Auto-reconnect
-			console.log('🔄 [WEBSOCKET] Will attempt to reconnect in 3 seconds...');
-			reconnectTimeoutRef.current = setTimeout(() => {
-				console.log('🔄 [WEBSOCKET] Reconnecting...');
-				connectWebSocket();
-			}, 3000);
-		};
-
-		wsRef.current = ws;
-	} catch (err) {
-		console.error('❌ [WEBSOCKET] Failed to create WebSocket:', err);
-		setError('Failed to create WebSocket connection');
-		setConnectionStatus('error');
-	}
+		}
 	};
 
 	const getStatusBadge = () => {
