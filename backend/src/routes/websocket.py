@@ -145,12 +145,14 @@ class DetectionManager:
                 print(f"🔄 [DETECTION] Loop #{loop_count} for floor {floor_id}")
                 
                 if use_simulation:
-                    # Simulation mode - generate random detection data
-                    persons_detected = random.randint(0, 5)
+                    # Simulation mode - generate more realistic detection data
+                    # Use 0-2 range for more realistic simulation when alone
+                    persons_detected = random.randint(0, 2)
                     table_status = []
                     for t in tables:
-                        # Randomly mark some tables as occupied
-                        occupied = random.random() < 0.3  # 30% chance occupied
+                        # Occupied if persons detected > 0 AND random chance
+                        # More realistic: only occupied if someone is actually detected
+                        occupied = persons_detected > 0 and random.random() < 0.5
                         table_status.append({
                             "id": t["id"],
                             "name": t.get("name", f"Table {t['id']}"),
