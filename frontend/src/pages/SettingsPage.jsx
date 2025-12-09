@@ -137,6 +137,39 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 			return;
 		}
 
+		// Peringatan Mixed Content jika web HTTPS tapi CCTV HTTP
+		const isPageHttps = window.location.protocol === 'https:';
+		const isCctvHttp = url.startsWith('http://');
+
+		if (isPageHttps && isCctvHttp) {
+			const proceed = confirm(
+				'⚠️ PERINGATAN Mixed Content!\n\n' +
+					'Website ini menggunakan HTTPS, tetapi URL CCTV menggunakan HTTP.\n' +
+					'Browser akan memblokir konten HTTP pada halaman HTTPS.\n\n' +
+					'Solusi:\n' +
+					'1. Gunakan URL HTTPS untuk CCTV (jika tersedia)\n' +
+					'2. Gunakan IP publik dengan SSL\n' +
+					'3. Jalankan aplikasi di localhost untuk testing\n\n' +
+					'Lanjutkan menyimpan URL ini?'
+			);
+			if (!proceed) return;
+		}
+
+		// Peringatan untuk IP lokal
+		const isLocalIP =
+			url.includes('192.168.') ||
+			url.includes('10.0.') ||
+			url.includes('172.16.') ||
+			url.includes('localhost') ||
+			url.includes('127.0.0.1');
+
+		if (isLocalIP && isPageHttps) {
+			showToast(
+				'⚠️ URL menggunakan IP lokal. CCTV hanya bisa diakses dari jaringan lokal yang sama.',
+				'warning'
+			);
+		}
+
 		try {
 			setSaveStatus('saving');
 

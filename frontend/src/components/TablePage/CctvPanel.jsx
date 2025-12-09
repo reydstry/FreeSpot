@@ -297,6 +297,20 @@ const StreamItem = ({
 	showTableOverlay,
 	overlayRefs,
 }) => {
+	// Check for Mixed Content issue
+	const isPageHttps = window.location.protocol === 'https:';
+	const isCctvHttp = src && src.startsWith('http://');
+	const isMixedContent = isPageHttps && isCctvHttp;
+
+	// Check if it's a local IP
+	const isLocalIP =
+		src &&
+		(src.includes('192.168.') ||
+			src.includes('10.0.') ||
+			src.includes('172.16.') ||
+			src.includes('localhost') ||
+			src.includes('127.0.0.1'));
+
 	// Detect stream format
 	const isImageStream =
 		src.endsWith('.m3u8') ||
@@ -305,6 +319,90 @@ const StreamItem = ({
 		src.includes(':8080') ||
 		src.includes(':4747') ||
 		src.startsWith('rtsp://');
+
+	// Add timestamp to prevent caching for image streams
+	const streamUrl = useMemo(() => {
+		if (!src) return '';
+		// Add cache-busting parameter
+		const separator = src.includes('?') ? '&' : '?';
+		return `${src}${separator}_t=${Date.now()}`;
+	}, [src]);
+
+	// Log URL for debugging
+	useEffect(() => {
+		console.log('📹 [CCTV] Loading stream:', {
+			originalUrl: src,
+			streamUrl: streamUrl,
+			isImageStream,
+			isPageHttps,
+			isCctvHttp,
+			isMixedContent,
+			isLocalIP,
+		});
+
+		if (isMixedContent) {
+			console.warn(
+				'⚠️ [CCTV] Mixed Content detected! HTTPS page cannot load HTTP content.'
+			);
+			console.warn(
+				'💡 [CCTV] Solution: IP Webcam only supports HTTP. Run frontend locally or use a CCTV that supports HTTPS.'
+			);
+		}
+	}, [
+		src,
+		streamUrl,
+		isImageStream,
+		isPageHttps,
+		isCctvHttp,
+		isMixedContent,
+		isLocalIP,
+	]);
+
+	// If Mixed Content, show specific error immediately
+	if (isMixedContent) {
+		return (
+			<div className='relative w-full overflow-hidden rounded-xl ring-1 ring-white/10 bg-black/60'>
+				<div
+					style={{ aspectRatio: '16 / 9' }}
+					className='w-full relative'>
+					<div className='absolute inset-0 flex flex-col items-center justify-center bg-linear-to-b from-red-900/80 to-black/90 z-20 p-4'>
+						<div className='text-4xl mb-3'>🔒</div>
+						<p className='font-bold text-red-400 text-lg'>
+							Mixed Content Blocked
+						</p>
+						<p className='text-xs text-center mt-2 text-white/80 max-w-xs'>
+							Browser memblokir konten HTTP pada halaman HTTPS
+						</p>
+						<div className='mt-3 p-3 bg-black/50 rounded-lg max-w-full'>
+							<p className='text-xs text-yellow-400 font-semibold mb-2'>
+								⚠️ Masalah:
+							</p>
+							<p className='text-xs text-white/70'>
+								IP Webcam hanya mendukung HTTP, sedangkan website ini
+								menggunakan HTTPS.
+							</p>
+							<p className='text-xs text-green-400 font-semibold mt-3 mb-2'>
+								✅ Solusi:
+							</p>
+							<ul className='text-xs text-white/70 list-disc list-inside space-y-1'>
+								<li>
+									Jalankan frontend di{' '}
+									<span className='text-cyan-400'>localhost</span> untuk testing
+								</li>
+								<li>Atau gunakan CCTV/stream yang mendukung HTTPS</li>
+							</ul>
+						</div>
+						<p className='text-xs text-white/50 mt-3 break-all max-w-full'>
+							URL: {src}
+						</p>
+					</div>
+				</div>
+				<div className='absolute bottom-2 left-2 bg-red-900/70 px-3 py-1 rounded-lg text-xs text-white font-mono z-20'>
+					BLOCKED
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className='relative w-full overflow-hidden rounded-xl ring-1 ring-white/10 bg-black/60'>
@@ -319,17 +417,35 @@ const StreamItem = ({
 							Memuat stream...
 						</p>
 						<p className='text-white/50 text-xs mt-1'>Menghubungkan ke CCTV</p>
+						{isLocalIP && (
+							<p className='text-yellow-400 text-xs mt-2'>
+								⚠️ IP Lokal - hanya bisa diakses dari jaringan yang sama
+							</p>
+						)}
 					</div>
 				)}
 
 				{/* Error state */}
 				{hasError && (
-					<div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 bg-black/80 z-20'>
+					<div className='absolute inset-0 flex flex-col items-center justify-center text-red-500 bg-black/80 z-20 p-4'>
 						<div className='text-3xl mb-2'>⚠️</div>
 						<p className='font-bold'>Stream Error</p>
-						<p className='text-xs px-4 text-center mt-2 text-white/70 break-all'>
+						<p className='text-xs text-center mt-2 text-white/70 break-all max-w-full'>
 							{src}
 						</p>
+						<p className='text-xs text-center mt-2 text-yellow-400'>
+							Kemungkinan penyebab:
+						</p>
+						<ul className='text-xs text-white/60 mt-1 list-disc list-inside text-left'>
+							{isLocalIP && (
+								<li className='text-yellow-400'>
+									IP lokal tidak bisa diakses dari internet
+								</li>
+							)}
+							<li>URL tidak valid atau server tidak aktif</li>
+							<li>Server CCTV memblokir akses (CORS)</li>
+							<li>Format stream tidak didukung browser</li>
+						</ul>
 					</div>
 				)}
 
@@ -339,26 +455,41 @@ const StreamItem = ({
 						{isImageStream ? (
 							<img
 								className='w-full h-full object-cover'
-								src={src}
+								src={streamUrl}
 								alt={`CCTV Stream ${idx + 1}`}
 								style={{ transform: 'translateZ(0)' }}
-								onLoad={onLoad}
-								onError={() => {
-									console.error('Image load error:', src);
+								onLoad={() => {
+									console.log('✅ [CCTV] Image loaded successfully:', src);
+									onLoad();
+								}}
+								onError={(e) => {
+									console.error('❌ [CCTV] Image load error:', {
+										url: src,
+										error: e.type,
+										target: e.target,
+									});
 									onError();
 								}}
 							/>
 						) : (
 							<video
 								className='w-full h-full object-cover'
-								src={src}
+								src={streamUrl}
 								autoPlay
 								muted
 								playsInline
 								preload='none'
-								onLoadedData={onLoad}
-								onError={() => {
-									console.error('Video load error:', src);
+								crossOrigin='anonymous'
+								onLoadedData={() => {
+									console.log('✅ [CCTV] Video loaded successfully:', src);
+									onLoad();
+								}}
+								onError={(e) => {
+									console.error('❌ [CCTV] Video load error:', {
+										url: src,
+										error: e.type,
+										target: e.target,
+									});
 									onError();
 								}}
 							/>
