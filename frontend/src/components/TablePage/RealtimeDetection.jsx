@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY = 3000; // 3 seconds
+
 const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	const [isDetecting, setIsDetecting] = useState(false);
 	const [detectionData, setDetectionData] = useState(null);
@@ -18,6 +21,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	);
 	const wsRef = useRef(null);
 	const reconnectTimeoutRef = useRef(null);
+	const reconnectAttemptsRef = useRef(0);
 	const hasAutoStarted = useRef(false);
 
 	useEffect(() => {
@@ -176,6 +180,8 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 				setStatusMessage('Terhubung! Menunggu data deteksi...');
 				setIsDetecting(true);
 				setError(null);
+				// Reset reconnect attempts on successful connection
+				reconnectAttemptsRef.current = 0;
 			};
 
 			ws.onmessage = (event) => {
@@ -289,17 +295,28 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 				console.log('Close code:', event.code);
 				console.log('Close reason:', event.reason || 'No reason provided');
 				console.log('Was clean:', event.wasClean);
+				console.log('Reconnect attempts:', reconnectAttemptsRef.current, '/', MAX_RECONNECT_ATTEMPTS);
 				console.log('═══════════════════════════════════════════════════');
 
 				setConnectionStatus('disconnected');
-				setStatusMessage('Koneksi terputus. Menghubungkan ulang...');
 
-				// Auto-reconnect
-				console.log('🔄 [WEBSOCKET] Will attempt to reconnect in 3 seconds...');
-				reconnectTimeoutRef.current = setTimeout(() => {
-					console.log('🔄 [WEBSOCKET] Reconnecting...');
-					connectWebSocket();
-				}, 3000);
+				// Only auto-reconnect if under the limit
+				if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+					reconnectAttemptsRef.current += 1;
+					const delay = BASE_RECONNECT_DELAY * reconnectAttemptsRef.current; // Exponential backoff
+					setStatusMessage(`Koneksi terputus. Mencoba ulang (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+					
+					console.log(`🔄 [WEBSOCKET] Will attempt to reconnect in ${delay/1000} seconds... (attempt ${reconnectAttemptsRef.current})`);
+					reconnectTimeoutRef.current = setTimeout(() => {
+						console.log('🔄 [WEBSOCKET] Reconnecting...');
+						connectWebSocket();
+					}, delay);
+				} else {
+					console.log('❌ [WEBSOCKET] Max reconnect attempts reached. Please refresh the page.');
+					setStatusMessage('❌ Koneksi gagal. Silakan refresh halaman.');
+					setError('Max reconnect attempts reached');
+					setIsDetecting(false);
+				}
 			};
 
 			wsRef.current = ws;

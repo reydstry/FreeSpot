@@ -49,15 +49,26 @@ class DetectionManager:
 
     async def broadcast(self, floor_id: int, message: dict):
         if floor_id in self.active_connections:
+            clients_count = len(self.active_connections[floor_id])
+            if clients_count == 0:
+                print(f"⚠️ [BROADCAST] No clients to broadcast to for floor {floor_id}")
+                return
+            
+            print(f"📡 [BROADCAST] Sending to {clients_count} client(s) on floor {floor_id}: {message.get('status', 'unknown')} - {message.get('mode', 'N/A')}")
+            
             dead = []
+            sent_count = 0
             for conn in self.active_connections[floor_id]:
                 try:
                     await conn.send_json(message)
+                    sent_count += 1
                 except Exception as e:
                     print(f"⚠️ [WS] Failed to send to client: {e}")
                     dead.append(conn)
             for d in dead:
                 self.active_connections[floor_id].remove(d)
+            
+            print(f"✅ [BROADCAST] Sent to {sent_count}/{clients_count} clients")
 
     def start_detection(self, floor_id: int, stream_url: str, tables: list, canvas_width: int, canvas_height: int):
         if floor_id in self.active_streams:
@@ -257,19 +268,16 @@ manager = DetectionManager()
 
 @router.websocket("/ws/detection/{floor_id}")
 async def websocket_detection(websocket: WebSocket, floor_id: int):
-    # Get database session
-    from src.database import SessionLocal
-    db = SessionLocal()
-    
     print(f"═══════════════════════════════════════════════════")
     print(f"🔌 [WEBSOCKET] NEW CONNECTION REQUEST")
     print(f"═══════════════════════════════════════════════════")
     print(f"📍 Floor ID: {floor_id}")
     
+    # Get data from database and close session immediately
+    from src.database import SessionLocal
+    db = SessionLocal()
+    
     try:
-        await manager.connect(websocket, floor_id)
-        
-        # Get floor info and start detection if not already running
         floor = db.query(Floor).filter(Floor.id == floor_id).first()
         stream = db.query(CCTVStream).filter(
             CCTVStream.floor_id == floor_id,
@@ -277,30 +285,40 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
         ).first()
         tables = db.query(Table).filter(Table.floor_id == floor_id).all()
         
-        print(f"📊 Floor found: {floor is not None}")
-        print(f"📹 Stream found: {stream is not None}")
-        print(f"🪑 Tables found: {len(tables) if tables else 0}")
+        # Extract data before closing session
+        floor_data = {"id": floor.id, "name": floor.name} if floor else None
+        stream_url = stream.url if stream else None
+        tables_data = [
+            {
+                "id": t.id,
+                "name": t.name,
+                "coords": t.coords,
+                "width": t.width,
+                "height": t.height
+            }
+            for t in tables
+        ] if tables else []
         
-        if floor and stream and tables:
-            tables_data = [
-                {
-                    "id": t.id,
-                    "name": t.name,
-                    "coords": t.coords,  # coords is already a JSONB array [x_min, y_min, x_max, y_max]
-                    "width": t.width,
-                    "height": t.height
-                }
-                for t in tables
-            ]
-            
+    finally:
+        db.close()  # Close DB session immediately after query
+        print(f"✅ Database session closed")
+    
+    print(f"📊 Floor found: {floor_data is not None}")
+    print(f"📹 Stream found: {stream_url is not None}")
+    print(f"🪑 Tables found: {len(tables_data)}")
+    
+    try:
+        await manager.connect(websocket, floor_id)
+        
+        if floor_data and stream_url and tables_data:
             print(f"✅ All data available, starting detection...")
-            print(f"📹 Stream URL: {stream.url}")
+            print(f"📹 Stream URL: {stream_url}")
             
             # Start detection if not already running
             if not manager.is_detecting(floor_id):
                 manager.start_detection(
                     floor_id,
-                    stream.url,
+                    stream_url,
                     tables_data,
                     settings.CANVAS_WIDTH,
                     settings.CANVAS_HEIGHT
@@ -313,8 +331,8 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                 "type": "connected",
                 "message": "Detection sedang berjalan...",
                 "floor_id": floor_id,
-                "floor_name": floor.name,
-                "stream_url": stream.url,
+                "floor_name": floor_data["name"],
+                "stream_url": stream_url,
                 "tables_count": len(tables_data),
                 "status": "detecting",
                 "timestamp": datetime.now().isoformat()
@@ -322,11 +340,11 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
             print(f"✅ Initial status sent to client")
         else:
             missing = []
-            if not floor:
+            if not floor_data:
                 missing.append("floor")
-            if not stream:
+            if not stream_url:
                 missing.append("active CCTV stream")
-            if not tables:
+            if not tables_data:
                 missing.append("tables")
             error_msg = f"Missing: {', '.join(missing)}"
             print(f"❌ {error_msg}")
@@ -339,22 +357,25 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
         
         print(f"═══════════════════════════════════════════════════")
         
-        # Keep connection alive
+        # Keep connection alive with ping/pong
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
                 if data == "ping":
                     await websocket.send_json({"type": "pong"})
             except asyncio.TimeoutError:
-                await websocket.send_json({"type": "ping"})
+                # Send ping to keep connection alive
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except:
+                    break
                 
     except WebSocketDisconnect:
+        print(f"🔌 [WS] Client disconnected normally from floor {floor_id}")
         manager.disconnect(websocket, floor_id)
     except Exception as e:
         print(f"❌ [WEBSOCKET] Error: {e}")
         manager.disconnect(websocket, floor_id)
-    finally:
-        db.close()
 
 
 def get_manager():
