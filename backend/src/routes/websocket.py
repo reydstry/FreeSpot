@@ -286,7 +286,7 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                 {
                     "id": t.id,
                     "name": t.name,
-                    "coords": [t.x, t.y],
+                    "coords": t.coords,  # coords is already a JSONB array [x_min, y_min, x_max, y_max]
                     "width": t.width,
                     "height": t.height
                 }
