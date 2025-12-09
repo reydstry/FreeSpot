@@ -295,7 +295,12 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 				console.log('Close code:', event.code);
 				console.log('Close reason:', event.reason || 'No reason provided');
 				console.log('Was clean:', event.wasClean);
-				console.log('Reconnect attempts:', reconnectAttemptsRef.current, '/', MAX_RECONNECT_ATTEMPTS);
+				console.log(
+					'Reconnect attempts:',
+					reconnectAttemptsRef.current,
+					'/',
+					MAX_RECONNECT_ATTEMPTS
+				);
 				console.log('═══════════════════════════════════════════════════');
 
 				setConnectionStatus('disconnected');
@@ -304,15 +309,21 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 				if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
 					reconnectAttemptsRef.current += 1;
 					const delay = BASE_RECONNECT_DELAY * reconnectAttemptsRef.current; // Exponential backoff
-					setStatusMessage(`Koneksi terputus. Mencoba ulang (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
-					
-					console.log(`🔄 [WEBSOCKET] Will attempt to reconnect in ${delay/1000} seconds... (attempt ${reconnectAttemptsRef.current})`);
+					setStatusMessage(
+						`Koneksi terputus. Mencoba ulang (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`
+					);
+
+					console.log(
+						`🔄 [WEBSOCKET] Will attempt to reconnect in ${delay / 1000} seconds... (attempt ${reconnectAttemptsRef.current})`
+					);
 					reconnectTimeoutRef.current = setTimeout(() => {
 						console.log('🔄 [WEBSOCKET] Reconnecting...');
 						connectWebSocket();
 					}, delay);
 				} else {
-					console.log('❌ [WEBSOCKET] Max reconnect attempts reached. Please refresh the page.');
+					console.log(
+						'❌ [WEBSOCKET] Max reconnect attempts reached. Please refresh the page.'
+					);
 					setStatusMessage('❌ Koneksi gagal. Silakan refresh halaman.');
 					setError('Max reconnect attempts reached');
 					setIsDetecting(false);
