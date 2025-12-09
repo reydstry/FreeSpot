@@ -22,21 +22,49 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	const wsRef = useRef(null);
 	const reconnectTimeoutRef = useRef(null);
 	const reconnectAttemptsRef = useRef(0);
-	const hasAutoStarted = useRef(false);
+	const currentFloorIdRef = useRef(null);
 
 	useEffect(() => {
-		// Auto-connect WebSocket when component mounts
-		if (floor && floor.id && !hasAutoStarted.current) {
-			console.log('🚀 [AUTO-START] Component mounted, connecting WebSocket...');
-			hasAutoStarted.current = true;
-			setStatusMessage('Menghubungkan ke server deteksi...');
-			connectWebSocket();
+		// Only connect if floor.id changed and we don't have an active connection
+		const floorId = floor?.id;
+		
+		if (!floorId) {
+			return;
 		}
 
-		// Cleanup on unmount
+		// Skip if already connected to this floor
+		if (currentFloorIdRef.current === floorId && wsRef.current?.readyState === WebSocket.OPEN) {
+			console.log(`ℹ️ [WS] Already connected to floor ${floorId}, skipping...`);
+			return;
+		}
+
+		// Close existing connection if connecting to different floor
+		if (currentFloorIdRef.current !== floorId && wsRef.current) {
+			console.log(`🔄 [WS] Floor changed from ${currentFloorIdRef.current} to ${floorId}, reconnecting...`);
+			wsRef.current.close();
+			wsRef.current = null;
+		}
+
+		currentFloorIdRef.current = floorId;
+		console.log(`🚀 [AUTO-START] Connecting WebSocket for floor ${floorId}...`);
+		setStatusMessage('Menghubungkan ke server deteksi...');
+		reconnectAttemptsRef.current = 0;
+		connectWebSocket();
+
+		// Cleanup on unmount or floor change
 		return () => {
+			if (reconnectTimeoutRef.current) {
+				clearTimeout(reconnectTimeoutRef.current);
+				reconnectTimeoutRef.current = null;
+			}
+		};
+	}, [floor?.id]); // Only depend on floor.id, not entire floor object
+
+	// Separate cleanup for component unmount
+	useEffect(() => {
+		return () => {
+			console.log('🧹 [CLEANUP] Component unmounting, closing WebSocket');
 			if (wsRef.current) {
-				console.log('🧹 [CLEANUP] Closing WebSocket connection');
 				wsRef.current.close();
 				wsRef.current = null;
 			}
@@ -44,7 +72,7 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 				clearTimeout(reconnectTimeoutRef.current);
 			}
 		};
-	}, [floor]);
+	}, []);
 
 	const startDetection = async () => {
 		try {
@@ -145,6 +173,24 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 		if (!floor || !floor.id) {
 			console.error('❌ [WEBSOCKET] Cannot connect - floor is missing');
 			return;
+		}
+
+		// Check if already connected
+		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+			console.log('ℹ️ [WEBSOCKET] Already connected, skipping...');
+			return;
+		}
+
+		// Check if currently connecting
+		if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+			console.log('ℹ️ [WEBSOCKET] Connection in progress, skipping...');
+			return;
+		}
+
+		// Close any existing connection
+		if (wsRef.current) {
+			wsRef.current.close();
+			wsRef.current = null;
 		}
 
 		// Convert HTTP(S) URL to WS(S) URL properly
