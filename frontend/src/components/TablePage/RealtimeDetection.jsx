@@ -27,20 +27,25 @@ const RealtimeDetection = ({ floor, tables, canvasRef, onDetectionUpdate }) => {
 	useEffect(() => {
 		// Only connect if floor.id changed and we don't have an active connection
 		const floorId = floor?.id;
-		
+
 		if (!floorId) {
 			return;
 		}
 
 		// Skip if already connected to this floor
-		if (currentFloorIdRef.current === floorId && wsRef.current?.readyState === WebSocket.OPEN) {
+		if (
+			currentFloorIdRef.current === floorId &&
+			wsRef.current?.readyState === WebSocket.OPEN
+		) {
 			console.log(`ℹ️ [WS] Already connected to floor ${floorId}, skipping...`);
 			return;
 		}
 
 		// Close existing connection if connecting to different floor
 		if (currentFloorIdRef.current !== floorId && wsRef.current) {
-			console.log(`🔄 [WS] Floor changed from ${currentFloorIdRef.current} to ${floorId}, reconnecting...`);
+			console.log(
+				`🔄 [WS] Floor changed from ${currentFloorIdRef.current} to ${floorId}, reconnecting...`
+			);
 			wsRef.current.close();
 			wsRef.current = null;
 		}
