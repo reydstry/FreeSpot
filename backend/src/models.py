@@ -65,6 +65,44 @@ class Table(Base):
         return f"<Table {self.name} on Floor {self.floor_id}>"
     
     def to_dict(self):
+        # Normalize coords and ensure width/height are present for detection
+        coords = self.coords
+        width = self.width
+        height = self.height
+
+        try:
+            # If coords is a dict like {x, y, width, height}
+            if isinstance(coords, dict):
+                x = coords.get('x')
+                y = coords.get('y')
+                w = coords.get('width')
+                h = coords.get('height')
+                if w is not None and h is not None:
+                    width = float(w)
+                    height = float(h)
+                # Keep coords as-is (dict) for backward compatibility
+            # If coords is a list
+            elif isinstance(coords, (list, tuple)):
+                if len(coords) >= 4:
+                    # Assume [x_min, y_min, x_max, y_max]
+                    try:
+                        x_min = float(coords[0])
+                        y_min = float(coords[1])
+                        x_max = float(coords[2])
+                        y_max = float(coords[3])
+                        width = float(x_max - x_min)
+                        height = float(y_max - y_min)
+                    except Exception:
+                        pass
+                elif len(coords) == 2:
+                    # coords may be [x, y] and width/height stored separately
+                    if width is not None and height is not None:
+                        width = float(width)
+                        height = float(height)
+        except Exception:
+            # Be defensive: if anything goes wrong, leave width/height as-is
+            pass
+
         return {
             "id": self.id,
             "name": self.name,
@@ -72,8 +110,8 @@ class Table(Base):
             "status": self.status,
             "floor_id": self.floor_id,
             "coords": self.coords,
-            "width": self.width,
-            "height": self.height,
+            "width": width,
+            "height": height,
             "rotation": self.rotation
         }
 

@@ -284,20 +284,23 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
             CCTVStream.is_active == True
         ).first()
         tables = db.query(Table).filter(Table.floor_id == floor_id).all()
-        
+
         # Extract data before closing session
         floor_data = {"id": floor.id, "name": floor.name} if floor else None
         stream_url = stream.url if stream else None
-        tables_data = [
-            {
-                "id": t.id,
-                "name": t.name,
-                "coords": t.coords,
-                "width": t.width,
-                "height": t.height
-            }
-            for t in tables
-        ] if tables else []
+        # Use Table.to_dict() to ensure width/height are computed and present
+        tables_data = []
+        if tables:
+            for t in tables:
+                td = t.to_dict()
+                # Only include the fields ML API needs to reduce payload
+                tables_data.append({
+                    "id": td.get("id"),
+                    "name": td.get("name"),
+                    "coords": td.get("coords"),
+                    "width": td.get("width"),
+                    "height": td.get("height")
+                })
         print("=== TABLES DATA (AFTER FETCH) ===")
         for tbl in tables_data:
             print(tbl)
