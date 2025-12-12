@@ -298,6 +298,10 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
             }
             for t in tables
         ] if tables else []
+        print("=== TABLES DATA (AFTER FETCH) ===")
+        for tbl in tables_data:
+            print(tbl)
+
         
     finally:
         db.close()  # Close DB session immediately after query

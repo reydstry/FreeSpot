@@ -88,8 +88,16 @@ async def detect(
             tid = t["id"]
             tx, ty = t["coords"][0] * scale_x, t["coords"][1] * scale_y
             tw, th = t["width"] * scale_x, t["height"] * scale_y
-            
-            occupied = any(tx <= px <= tx + tw and ty <= py <= ty + th for px, py in persons)
+
+            # Add small padding to table bounding box to be more robust
+            # against slight misalignments between detection and configured coords
+            pad = max(8, min(tw, th) * 0.15)
+            tx_pad = tx - pad
+            ty_pad = ty - pad
+            tw_pad = tw + pad * 2
+            th_pad = th + pad * 2
+
+            occupied = any(tx_pad <= px <= tx_pad + tw_pad and ty_pad <= py <= ty_pad + th_pad for px, py in persons)
             table_status.append({"id": tid, "name": t.get("name", f"Table {tid}"), "occupied": occupied})
         
         return DetectResponse(success=True, floor_id=floor_id, person_count=len(persons), table_status=table_status)
@@ -137,7 +145,7 @@ async def detect_base64(request: DetectBase64Request):
         for t in request.tables:
             tid = t["id"]
             coords = t.get("coords", [0, 0, 0, 0])
-            # Handle both formats: [x, y] or [x_min, y_min, x_max, y_max]
+            # Handle both formats: [x, y] + width/height or [x_min, y_min, x_max, y_max]
             if len(coords) >= 4:
                 tx, ty = coords[0] * scale_x, coords[1] * scale_y
                 tw = (coords[2] - coords[0]) * scale_x
@@ -145,11 +153,18 @@ async def detect_base64(request: DetectBase64Request):
             else:
                 tx, ty = coords[0] * scale_x if len(coords) > 0 else 0, coords[1] * scale_y if len(coords) > 1 else 0
                 tw, th = t.get("width", 100) * scale_x, t.get("height", 100) * scale_y
-            
-            occupied = any(tx <= px <= tx + tw and ty <= py <= ty + th for px, py in persons)
+
+            # Apply padding to bounding box to reduce missed detections
+            pad = max(8, min(tw, th) * 0.15)
+            tx_pad = tx - pad
+            ty_pad = ty - pad
+            tw_pad = tw + pad * 2
+            th_pad = th + pad * 2
+
+            occupied = any(tx_pad <= px <= tx_pad + tw_pad and ty_pad <= py <= ty_pad + th_pad for px, py in persons)
             table_status.append({
-                "id": tid, 
-                "name": t.get("name", f"Table {tid}"), 
+                "id": tid,
+                "name": t.get("name", f"Table {tid}"),
                 "occupied": occupied,
                 "method": "yolo_detection"
             })
