@@ -1,6 +1,5 @@
 // ...existing code...
 import React from 'react';
-import PropTypes from 'prop-types';
 
 /**
  * Simple mobile bottom bar.
@@ -33,10 +32,4 @@ const BottomBar = ({ activePage, setActivePage }) => {
 	);
 };
 
-BottomBar.propTypes = {
-	activePage: PropTypes.string,
-	setActivePage: PropTypes.func.isRequired,
-};
-
 export default BottomBar;
-// ...existing code...
