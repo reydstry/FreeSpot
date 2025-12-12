@@ -3,7 +3,7 @@ FreeSpot Backend - Pydantic Schemas
 """
 
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union, Dict, Any
 from datetime import datetime
 
 
@@ -37,7 +37,7 @@ class TableBase(BaseModel):
     floor_id: int
     capacity: int = 1
     status: str = "available"
-    coords: Optional[List[float]] = None
+    coords: Optional[Union[List[float], Dict[str, Any]]] = None
     width: Optional[float] = None
     height: Optional[float] = None
     rotation: float = 0.0
@@ -48,11 +48,11 @@ class TableCreate(TableBase):
 
 
 class TableUpdate(BaseModel):
-    id: int
+    # id is provided in path param; not required in body
     name: Optional[str] = None
     capacity: Optional[int] = None
     status: Optional[str] = None
-    coords: Optional[List[float]] = None
+    coords: Optional[Union[List[float], Dict[str, Any]]] = None
     width: Optional[float] = None
     height: Optional[float] = None
     rotation: Optional[float] = None
