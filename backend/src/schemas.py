@@ -48,6 +48,7 @@ class TableCreate(TableBase):
 
 
 class TableUpdate(BaseModel):
+    id: int
     name: Optional[str] = None
     capacity: Optional[int] = None
     status: Optional[str] = None
@@ -55,6 +56,7 @@ class TableUpdate(BaseModel):
     width: Optional[float] = None
     height: Optional[float] = None
     rotation: Optional[float] = None
+
 
 
 class TableResponse(TableBase):

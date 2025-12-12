@@ -64,12 +64,29 @@ class TableController:
             raise HTTPException(status_code=404, detail="Table not found")
 
         update_data = table_data.model_dump(exclude_unset=True)
+
+        # Hitung width / height jika coords berubah
+        if "coords" in update_data and update_data["coords"]:
+            coords = update_data["coords"]
+
+            # Kalau format coords [x_min, y_min, x_max, y_max]
+            if isinstance(coords, list) and len(coords) == 4:
+                x1, y1, x2, y2 = coords
+                update_data["width"] = abs(x2 - x1)
+                update_data["height"] = abs(y2 - y1)
+
+            # Kalau format coords adalah object {x, y, width, height}
+            elif isinstance(coords, dict):
+                update_data["width"] = coords.get("width")
+                update_data["height"] = coords.get("height")
+
         for key, value in update_data.items():
             setattr(db_table, key, value)
 
         db.commit()
         db.refresh(db_table)
         return db_table
+
 
     @staticmethod
     def delete(table_id: int, db: Session):

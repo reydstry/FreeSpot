@@ -386,11 +386,15 @@ export const useCanvasInteractions = (
 			const updatedTable = localTables.find((t) => t.id === selectedTable.id);
 			if (updatedTable) {
 				const updates = {};
-				if (updatedTable.coords) updates.coords = updatedTable.coords;
+				if (updatedTable.coords) {
+					const [x1, y1, x2, y2] = updatedTable.coords;
+					updates.coords = updatedTable.coords;
+					updates.width = x2 - x1;
+					updates.height = y2 - y1;
+				}			
 				if (updatedTable.rotation !== undefined)
 					updates.rotation = updatedTable.rotation;
 				onUpdateTable(selectedTable.id, updates);
-				// Update selectedTable to reflect the new coords/rotation
 				setSelectedTable(updatedTable);
 			}
 		}

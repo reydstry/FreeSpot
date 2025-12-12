@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/freespot"
-    DETECTION_INTERVAL: int = 30  # Detection interval in seconds
+    DETECTION_INTERVAL: int = 30
     DETECTION_CONFIDENCE: float = 0.5
     ML_API_URL: str = "http://localhost:9000"
     HOST: str = "0.0.0.0"
