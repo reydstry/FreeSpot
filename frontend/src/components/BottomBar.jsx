@@ -21,7 +21,9 @@ const BottomBar = ({ activePage, setActivePage }) => {
 						key={it.id}
 						onClick={() => setActivePage(it.id)}
 						className={`flex-1 h-full flex flex-col items-center justify-center gap-1 transition-colors duration-150 ${
-							active ? 'text-secondary bg-primary/80' : 'text-secondary/80'
+							active
+								? 'bg-secondary text-primary shadow-xl scale-105'
+								: 'text-secondary hover:bg-primary-light-2/30 hover:shadow-lg'
 						}`}>
 						<span className='text-xl'>{it.icon}</span>
 						<span className='text-[11px] leading-none mt-0.5'>{it.label}</span>
