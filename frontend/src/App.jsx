@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
-import BottomBar from './components/BottomBar';
 import TablePage from './pages/TablePage';
 import EditLayoutPage from './pages/EditLayoutPage';
 import SettingsPage from './pages/SettingsPage';
@@ -8,7 +7,6 @@ import { tablesAPI, floorsAPI } from './services/api';
 import { showToast } from './components/Toast/ToastContainer';
 import { DEFAULT_TABLE_STATUS } from './constants';
 import { useBackendConnection } from './hooks';
-import ResponsiveWrapper from './context/ResponsiveWrapper';
 
 export default function App() {
 	const [activePage, setActivePage] = useState('meja');
@@ -346,48 +344,39 @@ export default function App() {
 			<div className='flex-1 flex flex-col overflow-hidden'>
 				<main className='flex-1 overflow-y-auto bg-secondary/85 p-6'>
 					{activePage === 'meja' && (
-						<ResponsiveWrapper>
-							<TablePage
-								tables={tables}
-								floors={floors}
-								onStatusChange={handleStatusChange}
-								isBackendConnected={isConnected}
-							/>
-						</ResponsiveWrapper>
+						<TablePage
+							tables={tables}
+							floors={floors}
+							onStatusChange={handleStatusChange}
+							isBackendConnected={isConnected}
+						/>
 					)}
 					{activePage === 'edit' && (
-						<ResponsiveWrapper>
-							<EditLayoutPage
-								tables={tables}
-								floors={floors}
-								onSaveTables={handleSaveTables}
-								onAddTable={handleAddTable}
-								onUpdateTable={handleUpdateTable}
-								onDeleteTable={handleDeleteTable}
-								onAddFloor={handleAddFloor}
-								onDeleteFloor={handleDeleteFloor}
-							/>
-						</ResponsiveWrapper>
+						<EditLayoutPage
+							tables={tables}
+							floors={floors}
+							onSaveTables={handleSaveTables}
+							onAddTable={handleAddTable}
+							onUpdateTable={handleUpdateTable}
+							onDeleteTable={handleDeleteTable}
+							onAddFloor={handleAddFloor}
+							onDeleteFloor={handleDeleteFloor}
+						/>
 					)}
 					{activePage === 'settings' && (
-						<ResponsiveWrapper>
-							<SettingsPage
-								tables={tables}
-								floors={floors}
-							/>
-						</ResponsiveWrapper>
+						<SettingsPage
+							tables={tables}
+							floors={floors}
+						/>
 					)}
 				</main>
-				<BottomBar
-					activePage={activePage}
-					setActivePage={setActivePage}
-				/>
 			</div>
 
+			{/* Backend Connection Status Banner */}
 			{!isConnected && initialLoadDone && (
 				<div className='fixed top-0 left-0 right-0 bg-yellow-500 text-yellow-900 text-center py-2 px-4 z-40 flex items-center justify-center gap-3'>
 					<span className='font-medium'>
-						Koneksi ke server terputus. Mencoba menghubungkan kembali...
+						⚠️ Koneksi ke server terputus. Mencoba menghubungkan kembali...
 					</span>
 					<button
 						onClick={retry}
@@ -398,6 +387,7 @@ export default function App() {
 				</div>
 			)}
 
+			{/* Initial Loading - Waiting for Backend */}
 			{!initialLoadDone && (
 				<div className='fixed inset-0 bg-primary flex items-center justify-center z-50'>
 					<div className='bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[280px]'>
@@ -423,6 +413,7 @@ export default function App() {
 				</div>
 			)}
 
+			{/* Global Loading Overlay */}
 			{isLoading && (
 				<div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50'>
 					<div className='bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]'>
