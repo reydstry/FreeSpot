@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
+import BottomBar from './components/BottomBar';
 import TablePage from './pages/TablePage';
 import EditLayoutPage from './pages/EditLayoutPage';
 import SettingsPage from './pages/SettingsPage';
@@ -370,6 +371,10 @@ export default function App() {
 						/>
 					)}
 				</main>
+				<BottomBar
+					activePage={activePage}
+					setActivePage={setActivePage}
+				/>
 			</div>
 
 			{/* Backend Connection Status Banner */}
