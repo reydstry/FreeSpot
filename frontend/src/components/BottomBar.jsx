@@ -22,7 +22,7 @@ const BottomBar = ({ activePage, setActivePage }) => {
 						onClick={() => setActivePage(it.id)}
 						className={`flex-1 h-full flex flex-col items-center justify-center gap-1 transition-colors duration-150 ${
 							active
-								? 'bg-secondary text-primary shadow-xl scale-105'
+								? 'bg-secondary text-primary shadow-xl rounded-md'
 								: 'text-secondary hover:bg-primary-light-2/30 hover:shadow-lg'
 						}`}>
 						<span className='text-xl'>{it.icon}</span>
