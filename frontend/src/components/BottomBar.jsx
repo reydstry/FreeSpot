@@ -1,10 +1,5 @@
-// ...existing code...
 import React from 'react';
 
-/**
- * Simple mobile bottom bar.
- * Usage: <BottomBar activePage={activePage} setActivePage={setActivePage} />
- */
 const BottomBar = ({ activePage, setActivePage }) => {
 	const menu = [
 		{ id: 'meja', label: 'Meja', icon: '🪑' },
@@ -13,20 +8,40 @@ const BottomBar = ({ activePage, setActivePage }) => {
 	];
 
 	return (
-		<nav className='fixed bottom-0 left-0 right-0 h-16 bg-primary text-secondary flex items-center justify-between px-2 shadow-lg z-50 sm:hidden'>
+		<nav className='fixed bottom-0 left-0 right-0 h-16 bg-primary text-secondary flex items-center justify-between px-2 shadow-xl z-50 sm:hidden'>
 			{menu.map((it) => {
 				const active = activePage === it.id;
+
 				return (
 					<button
 						key={it.id}
 						onClick={() => setActivePage(it.id)}
-						className={`flex-1 h-full flex flex-col items-center justify-center gap-1 transition-colors duration-150 ${
-							active
-								? 'bg-secondary text-primary shadow-xl rounded-t-full'
-								: 'text-secondary hover:bg-primary-light-2/30 hover:shadow-lg'
-						}`}>
-						<span className='text-xl'>{it.icon}</span>
-						<span className='text-[11px] leading-none mt-0.5'>{it.label}</span>
+						className={`relative flex-1 h-full flex flex-col items-center justify-center gap-0.5 overflow-hidden transition-all duration-300`}>
+						<div
+							className={`absolute bottom-0 left-0 right-0 h-10 rounded-t-2xl transition-all duration-300 ${
+								active
+									? 'bg-secondary opacity-100 translate-y-0'
+									: 'opacity-0 translate-y-5'
+							}`}
+            />
+            
+						<span
+							className={`text-xl relative z-10 transition-all duration-300 ${
+								active
+									? 'scale-125 -translate-y-1 text-primary'
+									: 'scale-100 translate-y-0 text-secondary opacity-70'
+							}`}>
+							{it.icon}
+						</span>
+
+						<span
+							className={`text-[11px] relative z-10 transition-all duration-300 ${
+								active
+									? 'opacity-100 text-primary translate-y-0'
+									: 'opacity-0 translate-y-1'
+							}`}>
+							{it.label}
+						</span>
 					</button>
 				);
 			})}
