@@ -202,6 +202,9 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 			console.log(`🔌 [WS] Connecting to floor ${floorId}:`, fullWsUrl);
 
 			const ws = new WebSocket(fullWsUrl);
+			// expose connection globally to avoid duplicate connections from other components
+			window.__freespot_ws_connections = window.__freespot_ws_connections || {};
+			window.__freespot_ws_connections[floorId] = ws;
 
 			ws.onopen = () => {
 				console.log(`✅ [WS] Connected to floor ${floorId}`);
@@ -211,10 +214,17 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 				try {
 					const data = JSON.parse(event.data);
 					if (data && data.table_status) {
-						console.log(
-							`📨 [WS] Floor ${floorId}: ${data.persons_detected} persons`
+						// Minimal logging to avoid noise
+						console.debug(
+							`WS floor ${floorId} update: persons=${data.persons_detected}`
 						);
 						handleDetectionUpdate(data);
+						// Broadcast a global event so UI panels can listen without opening WS
+						window.dispatchEvent(
+							new CustomEvent('freespot-detection', {
+								detail: { floorId, data },
+							})
+						);
 					}
 				} catch (err) {
 					console.error(`❌ [WS] Parse error floor ${floorId}:`, err);

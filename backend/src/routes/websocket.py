@@ -88,6 +88,21 @@ class DetectionManager:
         task = asyncio.create_task(self._detection_loop(floor_id))
         self.active_streams[floor_id] = task
 
+        # Ensure we remove the task from active_streams when it finishes
+        def _on_done(t: asyncio.Task, fid=floor_id):
+            try:
+                exc = t.exception()
+                if exc:
+                    print(f"❌ [DETECTION] Task for floor {fid} finished with exception: {exc}")
+            except asyncio.CancelledError:
+                print(f"🛑 [DETECTION] Task for floor {fid} was cancelled")
+            finally:
+                if fid in self.active_streams and self.active_streams[fid] is t:
+                    del self.active_streams[fid]
+                    print(f"🧹 [DETECTION] Cleaned up finished task for floor {fid}")
+
+        task.add_done_callback(_on_done)
+
     async def _detection_loop(self, floor_id: int):
         """Main detection loop that captures frames from HTTP stream and sends to ML API"""
         data = self.stream_data.get(floor_id)
@@ -274,11 +289,7 @@ manager = DetectionManager()
 
 @router.websocket("/ws/detection/{floor_id}")
 async def websocket_detection(websocket: WebSocket, floor_id: int):
-    print(f"═══════════════════════════════════════════════════")
-    print(f"🔌 [WEBSOCKET] NEW CONNECTION REQUEST")
-    print(f"═══════════════════════════════════════════════════")
-    print(f"📍 Floor ID: {floor_id}")
-    
+   
     # Get data from database and close session immediately
     from src.database import SessionLocal
     db = SessionLocal()
@@ -315,10 +326,7 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
     finally:
         db.close()  # Close DB session immediately after query
         print(f"✅ Database session closed")
-    
-    print(f"📊 Floor found: {floor_data is not None}")
-    print(f"📹 Stream found: {stream_url is not None}")
-    print(f"🪑 Tables found: {len(tables_data)}")
+
     
     try:
         await manager.connect(websocket, floor_id)
