@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { cctvAPI } from '../services/api';
 import { showToast } from '../components/Toast/ToastContainer';
-import ResponsiveWrapper from '../context/ResponsiveWrapper';
 
 const SettingsPage = ({ tables = [], floors = [] }) => {
 	const STORAGE_KEY = 'freespot_cctv_settings';
@@ -296,161 +295,159 @@ const SettingsPage = ({ tables = [], floors = [] }) => {
 	};
 
 	return (
-		<ResponsiveWrapper>
-			<div>
-				{isLoading && (
-					<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-						<div className='bg-white rounded-2xl p-6 flex items-center gap-3'>
-							<RefreshCw className='w-6 h-6 animate-spin text-primary' />
-							<span className='font-semibold'>Loading CCTV streams...</span>
-						</div>
-					</div>
-				)}
-
-				<div className='flex items-center justify-between mb-6'>
-					<div>
-						<h2 className='text-3xl font-bold text-primary mb-2 flex items-center gap-3'>
-							<Settings size={28} />
-							Pengaturan CCTV
-						</h2>
-						<p className='text-gray-600'>
-							Kelola link RTSP/HLS untuk setiap lantai. Tersimpan otomatis ke
-							database.
-						</p>
-					</div>
-
-					<div className='flex gap-2'>
-						<button
-							onClick={loadCctvStreams}
-							className='px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 flex items-center gap-2'>
-							<RefreshCw size={16} />
-							Refresh
-						</button>
-						<button
-							onClick={handleResetAll}
-							className='px-4 py-2.5 rounded-xl bg-danger text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 flex items-center gap-2'>
-							<Trash2 size={16} />
-							Reset Semua
-						</button>
+		<div>
+			{isLoading && (
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+					<div className='bg-white rounded-2xl p-6 flex items-center gap-3'>
+						<RefreshCw className='w-6 h-6 animate-spin text-primary' />
+						<span className='font-semibold'>Loading CCTV streams...</span>
 					</div>
 				</div>
+			)}
 
-				<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-					{availableFloors.length === 0 ? (
-						<div className='col-span-3 text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300'>
-							<Camera
-								size={48}
-								className='mx-auto mb-4 text-gray-400'
-							/>
-							<h3 className='text-xl font-bold text-gray-600 mb-2'>
-								Belum Ada Lantai
-							</h3>
-							<p className='text-gray-500'>
-								Silakan tambahkan lantai terlebih dahulu di halaman Setup Meja
-							</p>
-						</div>
-					) : (
-						availableFloors.map((floor) => (
-							<div
-								key={floor}
-								className='bg-secondary-light rounded-2xl shadow-lg border border-gray-200 overflow-hidden'>
-								<div className='bg-linear-to-r from-primary to-primary-light p-4 text-white'>
-									<h3 className='font-bold text-lg flex items-center gap-2'>
-										<Camera size={20} />
-										Lantai {floor}
-									</h3>
-									<p className='text-sm opacity-90'>
-										{cctvFeeds[floor]?.length > 0
-											? '1 CCTV aktif'
-											: 'Belum ada CCTV'}
-									</p>
-								</div>
+			<div className='flex items-center justify-between mb-6'>
+				<div>
+					<h2 className='text-3xl font-bold text-primary mb-2 flex items-center gap-3'>
+						<Settings size={28} />
+						Pengaturan CCTV
+					</h2>
+					<p className='text-gray-600'>
+						Kelola link RTSP/HLS untuk setiap lantai. Tersimpan otomatis ke
+						database.
+					</p>
+				</div>
 
-								<div className='p-4 space-y-4'>
-									{/* Input untuk set/update CCTV URL */}
-									<div className='space-y-2'>
-										<label className='text-sm font-semibold text-primary flex items-center gap-1'>
-											<LinkIcon size={14} />
-											URL Stream CCTV
-										</label>
-										<div className='bg-white flex gap-2'>
-											<input
-												type='text'
-												placeholder='rtsp://... atau https://...m3u8'
-												value={inputs[floor] || ''}
-												onChange={(e) =>
-													setInputs((prev) => ({
-														...prev,
-														[floor]: e.target.value,
-													}))
-												}
-												onKeyDown={(e) => {
-													if (e.key === 'Enter') handleAddFeed(floor);
-												}}
-												className='flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors text-sm'
-											/>
-											<button
-												onClick={() => handleAddFeed(floor)}
-												disabled={
-													saveStatus === 'saving' || !inputs[floor]?.trim()
-												}
-												className='px-4 py-2 rounded-xl bg-success text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-success-dark hover:scale-105 active:scale-95 transition-all'>
-												{cctvFeeds[floor]?.length > 0 ? '✓' : '+'}
-											</button>
-										</div>
-										{cctvFeeds[floor]?.length > 0 && (
-											<p className='text-xs text-gray-500'>
-												Sudah ada CCTV. Masukkan URL baru untuk mengganti.
-											</p>
-										)}
-									</div>
-
-									{/* Tampilkan CCTV yang aktif (hanya 1) */}
-									{cctvFeeds[floor]?.length > 0 ? (
-										<div className='space-y-2'>
-											<p className='text-xs font-semibold text-gray-500 uppercase'>
-												CCTV Aktif:
-											</p>
-											{cctvFeeds[floor].slice(0, 1).map((stream, idx) => (
-												<div
-													key={stream.id || idx}
-													className='flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200'>
-													<div className='flex-1 min-w-0'>
-														<p className='text-sm font-semibold text-gray-800 mb-1'>
-															{stream.name || `CCTV Lantai ${floor}`}
-														</p>
-														<p className='text-xs font-mono text-gray-600 truncate'>
-															{stream.url || stream}
-														</p>
-														<span className='inline-block mt-1 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700'>
-															Active
-														</span>
-													</div>
-													<button
-														onClick={() => handleRemoveFeed(floor, idx)}
-														className='text-danger hover:bg-danger/10 p-1 rounded transition-colors shrink-0'
-														title='Hapus CCTV'>
-														<Trash2 size={14} />
-													</button>
-												</div>
-											))}
-										</div>
-									) : (
-										<div className='text-center py-8 text-gray-400'>
-											<Camera
-												size={32}
-												className='mx-auto mb-2 opacity-50'
-											/>
-											<p className='text-sm'>Belum ada CCTV</p>
-										</div>
-									)}
-								</div>
-							</div>
-						))
-					)}
+				<div className='flex gap-2'>
+					<button
+						onClick={loadCctvStreams}
+						className='px-4 py-2.5 rounded-xl bg-blue-500 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 flex items-center gap-2'>
+						<RefreshCw size={16} />
+						Refresh
+					</button>
+					<button
+						onClick={handleResetAll}
+						className='px-4 py-2.5 rounded-xl bg-danger text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 flex items-center gap-2'>
+						<Trash2 size={16} />
+						Reset Semua
+					</button>
 				</div>
 			</div>
-		</ResponsiveWrapper>
+
+			<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+				{availableFloors.length === 0 ? (
+					<div className='col-span-3 text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300'>
+						<Camera
+							size={48}
+							className='mx-auto mb-4 text-gray-400'
+						/>
+						<h3 className='text-xl font-bold text-gray-600 mb-2'>
+							Belum Ada Lantai
+						</h3>
+						<p className='text-gray-500'>
+							Silakan tambahkan lantai terlebih dahulu di halaman Setup Meja
+						</p>
+					</div>
+				) : (
+					availableFloors.map((floor) => (
+						<div
+							key={floor}
+							className='bg-secondary-light rounded-2xl shadow-lg border border-gray-200 overflow-hidden'>
+							<div className='bg-linear-to-r from-primary to-primary-light p-4 text-white'>
+								<h3 className='font-bold text-lg flex items-center gap-2'>
+									<Camera size={20} />
+									Lantai {floor}
+								</h3>
+								<p className='text-sm opacity-90'>
+									{cctvFeeds[floor]?.length > 0
+										? '1 CCTV aktif'
+										: 'Belum ada CCTV'}
+								</p>
+							</div>
+
+							<div className='p-4 space-y-4'>
+								{/* Input untuk set/update CCTV URL */}
+								<div className='space-y-2'>
+									<label className='text-sm font-semibold text-primary flex items-center gap-1'>
+										<LinkIcon size={14} />
+										URL Stream CCTV
+									</label>
+									<div className='bg-white flex gap-2'>
+										<input
+											type='text'
+											placeholder='rtsp://... atau https://...m3u8'
+											value={inputs[floor] || ''}
+											onChange={(e) =>
+												setInputs((prev) => ({
+													...prev,
+													[floor]: e.target.value,
+												}))
+											}
+											onKeyDown={(e) => {
+												if (e.key === 'Enter') handleAddFeed(floor);
+											}}
+											className='flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-primary focus:outline-none transition-colors text-sm'
+										/>
+										<button
+											onClick={() => handleAddFeed(floor)}
+											disabled={
+												saveStatus === 'saving' || !inputs[floor]?.trim()
+											}
+											className='px-4 py-2 rounded-xl bg-success text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-success-dark hover:scale-105 active:scale-95 transition-all'>
+											{cctvFeeds[floor]?.length > 0 ? '✓' : '+'}
+										</button>
+									</div>
+									{cctvFeeds[floor]?.length > 0 && (
+										<p className='text-xs text-gray-500'>
+											Sudah ada CCTV. Masukkan URL baru untuk mengganti.
+										</p>
+									)}
+								</div>
+
+								{/* Tampilkan CCTV yang aktif (hanya 1) */}
+								{cctvFeeds[floor]?.length > 0 ? (
+									<div className='space-y-2'>
+										<p className='text-xs font-semibold text-gray-500 uppercase'>
+											CCTV Aktif:
+										</p>
+										{cctvFeeds[floor].slice(0, 1).map((stream, idx) => (
+											<div
+												key={stream.id || idx}
+												className='flex items-start gap-2 p-3 bg-green-50 rounded-lg border border-green-200'>
+												<div className='flex-1 min-w-0'>
+													<p className='text-sm font-semibold text-gray-800 mb-1'>
+														{stream.name || `CCTV Lantai ${floor}`}
+													</p>
+													<p className='text-xs font-mono text-gray-600 truncate'>
+														{stream.url || stream}
+													</p>
+													<span className='inline-block mt-1 text-xs px-2 py-0.5 rounded bg-green-100 text-green-700'>
+														Active
+													</span>
+												</div>
+												<button
+													onClick={() => handleRemoveFeed(floor, idx)}
+													className='text-danger hover:bg-danger/10 p-1 rounded transition-colors shrink-0'
+													title='Hapus CCTV'>
+													<Trash2 size={14} />
+												</button>
+											</div>
+										))}
+									</div>
+								) : (
+									<div className='text-center py-8 text-gray-400'>
+										<Camera
+											size={32}
+											className='mx-auto mb-2 opacity-50'
+										/>
+										<p className='text-sm'>Belum ada CCTV</p>
+									</div>
+								)}
+							</div>
+						</div>
+					))
+				)}
+			</div>
+		</div>
 	);
 };
 

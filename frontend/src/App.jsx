@@ -8,6 +8,7 @@ import { tablesAPI, floorsAPI } from './services/api';
 import { showToast } from './components/Toast/ToastContainer';
 import { DEFAULT_TABLE_STATUS } from './constants';
 import { useBackendConnection } from './hooks';
+import ResponsiveWrapper from './context/ResponsiveWrapper';
 
 export default function App() {
 	const [activePage, setActivePage] = useState('meja');
@@ -345,30 +346,36 @@ export default function App() {
 			<div className='flex-1 flex flex-col overflow-hidden'>
 				<main className='flex-1 overflow-y-auto bg-secondary/85 p-6'>
 					{activePage === 'meja' && (
-						<TablePage
-							tables={tables}
-							floors={floors}
-							onStatusChange={handleStatusChange}
-							isBackendConnected={isConnected}
-						/>
+						<ResponsiveWrapper>
+							<TablePage
+								tables={tables}
+								floors={floors}
+								onStatusChange={handleStatusChange}
+								isBackendConnected={isConnected}
+							/>
+						</ResponsiveWrapper>
 					)}
 					{activePage === 'edit' && (
-						<EditLayoutPage
-							tables={tables}
-							floors={floors}
-							onSaveTables={handleSaveTables}
-							onAddTable={handleAddTable}
-							onUpdateTable={handleUpdateTable}
-							onDeleteTable={handleDeleteTable}
-							onAddFloor={handleAddFloor}
-							onDeleteFloor={handleDeleteFloor}
-						/>
+						<ResponsiveWrapper>
+							<EditLayoutPage
+								tables={tables}
+								floors={floors}
+								onSaveTables={handleSaveTables}
+								onAddTable={handleAddTable}
+								onUpdateTable={handleUpdateTable}
+								onDeleteTable={handleDeleteTable}
+								onAddFloor={handleAddFloor}
+								onDeleteFloor={handleDeleteFloor}
+							/>
+						</ResponsiveWrapper>
 					)}
 					{activePage === 'settings' && (
-						<SettingsPage
-							tables={tables}
-							floors={floors}
-						/>
+						<ResponsiveWrapper>
+							<SettingsPage
+								tables={tables}
+								floors={floors}
+							/>
+						</ResponsiveWrapper>
 					)}
 				</main>
 				<BottomBar

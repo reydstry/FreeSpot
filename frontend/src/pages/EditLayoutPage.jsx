@@ -8,7 +8,6 @@ import EditFloorModal from '../components/PopUp/EditFloorPopUp';
 import ToolbarActions from '../components/EditLayout/ToolbarActions';
 import { useCanvasInteractions, useTableManagement } from '../hooks';
 import { showToast } from '../components/Toast/ToastContainer';
-import ResponsiveWrapper from '../context/ResponsiveWrapper';
 
 const EditLayoutPage = ({
 	tables,
@@ -326,91 +325,89 @@ const EditLayoutPage = ({
 	};
 
 	return (
-		<ResponsiveWrapper>
-			<div>
-				<h2 className='text-3xl font-bold text-primary mb-4'>Setup Meja</h2>
-				<ToolbarActions
-					onVideoUpload={handleVideoUpload}
-					onAddTable={handleAddTableButton}
-					onEditFloor={() => setShowEditFloorModal(true)}
-					uploadedFileName={uploadedFileName}
-					onToggleFullscreen={toggleFullscreen}
+		<div>
+			<h2 className='text-3xl font-bold text-primary mb-4'>Setup Meja</h2>
+			<ToolbarActions
+				onVideoUpload={handleVideoUpload}
+				onAddTable={handleAddTableButton}
+				onEditFloor={() => setShowEditFloorModal(true)}
+				uploadedFileName={uploadedFileName}
+				onToggleFullscreen={toggleFullscreen}
+				isFullscreen={isFullscreen}
+			/>
+			<div className='flex flex-col lg:flex-row gap-6'>
+				<FloorCanvas
+					canvasRef={canvasRef}
+					canvasSize={canvasSize}
+					videoFrame={videoFrame}
+					filteredTables={filteredTables}
+					selectedTable={selectedTable}
+					currentRect={currentRect}
+					isDrawing={isDrawing}
+					filterFloor={filterFloor}
+					onCanvasMouseDown={handleCanvasMouseDown}
+					onCanvasMouseMove={handleCanvasMouseMove}
+					onCanvasMouseUp={handleCanvasMouseUp}
 					isFullscreen={isFullscreen}
-				/>
-				<div className='flex flex-col lg:flex-row gap-6'>
-					<FloorCanvas
-						canvasRef={canvasRef}
-						canvasSize={canvasSize}
-						videoFrame={videoFrame}
-						filteredTables={filteredTables}
-						selectedTable={selectedTable}
-						currentRect={currentRect}
-						isDrawing={isDrawing}
-						filterFloor={filterFloor}
-						onCanvasMouseDown={handleCanvasMouseDown}
-						onCanvasMouseMove={handleCanvasMouseMove}
-						onCanvasMouseUp={handleCanvasMouseUp}
-						isFullscreen={isFullscreen}
-						onToggleFullscreen={toggleFullscreen}
-					/>{' '}
-					<TableSidebar
-						displayedTables={displayedTables}
-						selectedTable={selectedTable}
-						searchQuery={searchQuery}
-						filterCapacity={filterCapacity}
-						filterFloor={filterFloor}
-						sortOrder={sortOrder}
-						onSearchChange={setSearchQuery}
-						onFilterClick={handleOpenFilterPopup}
-						onTableSelect={setSelectedTable}
-						onEditTable={handleEditTable}
-						onDeleteTable={handleDeleteTable}
-					/>
-				</div>
-				<FilterModal
-					isOpen={showFilterPopup}
-					onClose={() => setShowFilterPopup(false)}
-					filterCapacity={tempFilterCapacity}
-					filterFloor={tempFilterFloor}
-					sortOrder={tempSortOrder}
-					floors={floorNumbers}
-					onFilterCapacityChange={setTempFilterCapacity}
-					onFilterFloorChange={setTempFilterFloor}
-					onSortOrderChange={setTempSortOrder}
-					onReset={handleResetFilters}
-					onApply={handleApplyFilters}
-				/>
-				<AddTableModal
-					isOpen={showAddTablePopup}
-					onClose={() => setShowAddTablePopup(false)}
-					tableNumber={newTableNumber}
-					tableCapacity={newTableCapacity}
-					tableFloor={newTableFloor}
-					floors={floorNumbers}
-					onTableNumberChange={setNewTableNumber}
-					onTableCapacityChange={setNewTableCapacity}
-					onTableFloorChange={setNewTableFloor}
-					onConfirm={handleConfirmAddTable}
-				/>
-				<EditTableModal
-					isOpen={showEditTablePopup}
-					onClose={() => setShowEditTablePopup(false)}
-					table={editingTable}
-					tableNumber={editTableNumber}
-					tableCapacity={editTableCapacity}
-					onTableNumberChange={setEditTableNumber}
-					onTableCapacityChange={setEditTableCapacity}
-					onConfirm={handleConfirmEditTable}
-				/>
-				<EditFloorModal
-					isOpen={showEditFloorModal}
-					onClose={() => setShowEditFloorModal(false)}
-					floors={floors}
-					onAddFloor={handleAddFloor}
-					onDeleteFloor={handleDeleteFloor}
+					onToggleFullscreen={toggleFullscreen}
+				/>{' '}
+				<TableSidebar
+					displayedTables={displayedTables}
+					selectedTable={selectedTable}
+					searchQuery={searchQuery}
+					filterCapacity={filterCapacity}
+					filterFloor={filterFloor}
+					sortOrder={sortOrder}
+					onSearchChange={setSearchQuery}
+					onFilterClick={handleOpenFilterPopup}
+					onTableSelect={setSelectedTable}
+					onEditTable={handleEditTable}
+					onDeleteTable={handleDeleteTable}
 				/>
 			</div>
-		</ResponsiveWrapper>
+			<FilterModal
+				isOpen={showFilterPopup}
+				onClose={() => setShowFilterPopup(false)}
+				filterCapacity={tempFilterCapacity}
+				filterFloor={tempFilterFloor}
+				sortOrder={tempSortOrder}
+				floors={floorNumbers}
+				onFilterCapacityChange={setTempFilterCapacity}
+				onFilterFloorChange={setTempFilterFloor}
+				onSortOrderChange={setTempSortOrder}
+				onReset={handleResetFilters}
+				onApply={handleApplyFilters}
+			/>
+			<AddTableModal
+				isOpen={showAddTablePopup}
+				onClose={() => setShowAddTablePopup(false)}
+				tableNumber={newTableNumber}
+				tableCapacity={newTableCapacity}
+				tableFloor={newTableFloor}
+				floors={floorNumbers}
+				onTableNumberChange={setNewTableNumber}
+				onTableCapacityChange={setNewTableCapacity}
+				onTableFloorChange={setNewTableFloor}
+				onConfirm={handleConfirmAddTable}
+			/>
+			<EditTableModal
+				isOpen={showEditTablePopup}
+				onClose={() => setShowEditTablePopup(false)}
+				table={editingTable}
+				tableNumber={editTableNumber}
+				tableCapacity={editTableCapacity}
+				onTableNumberChange={setEditTableNumber}
+				onTableCapacityChange={setEditTableCapacity}
+				onConfirm={handleConfirmEditTable}
+			/>
+			<EditFloorModal
+				isOpen={showEditFloorModal}
+				onClose={() => setShowEditFloorModal(false)}
+				floors={floors}
+				onAddFloor={handleAddFloor}
+				onDeleteFloor={handleDeleteFloor}
+			/>
+		</div>
 	);
 };
 
