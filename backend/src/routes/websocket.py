@@ -137,7 +137,13 @@ class DetectionManager:
             loop_count += 1
             try:
                 print(f"🔄 [DETECTION] Loop #{loop_count} for floor {floor_id}")
-                
+                # Re-read stream_data every loop so updates to tables/canvas are applied
+                current_data = self.stream_data.get(floor_id)
+                if current_data:
+                    tables = current_data.get("tables", tables)
+                    canvas_width = current_data.get("canvas_width", canvas_width)
+                    canvas_height = current_data.get("canvas_height", canvas_height)
+
                 # Capture frame from HTTP stream
                 frame_base64 = await self._capture_frame_http(snapshot_url)
                 
@@ -331,7 +337,12 @@ async def websocket_detection(websocket: WebSocket, floor_id: int):
                     settings.CANVAS_HEIGHT
                 )
             else:
-                print(f"ℹ️ Detection already running for floor {floor_id}")
+                print(f"ℹ️ Detection already running for floor {floor_id}, updating tables and canvas sizes")
+                # Update existing stream_data so running detection picks up new tables
+                if floor_id in manager.stream_data:
+                    manager.stream_data[floor_id]["tables"] = tables_data
+                    manager.stream_data[floor_id]["canvas_width"] = settings.CANVAS_WIDTH
+                    manager.stream_data[floor_id]["canvas_height"] = settings.CANVAS_HEIGHT
             
             # Send initial status
             await websocket.send_json({
