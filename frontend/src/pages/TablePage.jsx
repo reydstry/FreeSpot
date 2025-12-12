@@ -11,6 +11,7 @@ import TableFilter from '../components/TablePage/TableFilter';
 import TableCard from '../components/TablePage/TableCard';
 import RealtimeDetection from '../components/TablePage/RealtimeDetection';
 import { cctvAPI, API_BASE_URL } from '../services/api';
+import ResponsiveWrapper from '../context/ResponsiveWrapper';
 
 const TablePage = ({ tables, floors, onStatusChange }) => {
 	const [activeFilter, setActiveFilter] = useState('all');
@@ -252,63 +253,65 @@ const TablePage = ({ tables, floors, onStatusChange }) => {
 	}, [floors, handleDetectionUpdate]);
 
 	return (
-		<div>
-			{/* Real-time Detection Panel - show detection info for selected floor */}
-			{currentFloor && selectedFloor !== 'all' && (
-				<RealtimeDetection
-					floor={currentFloor}
-					tables={currentFloorTables}
-					canvasRef={canvasRef}
-					onDetectionUpdate={handleDetectionUpdate}
-				/>
-			)}
-
-			{/* CCTV di atas summary */}
-			<CctvPanel
-				key={refreshKey}
-				feedsByFloor={cctvFeedsByFloor}
-				floorOptions={cctvFloorOptions}
-				floorValue={cctvSelectedFloor}
-				onFloorChange={setCctvSelectedFloor}
-				onRefresh={loadCctvStreams}
-				isLoading={isLoadingCctv}
-				floors={floors}
-				tables={tables}
-			/>
-			<SummaryCards tables={tables} />
-
+		<ResponsiveWrapper>
 			<div>
-				<h2 className='text-2xl font-bold text-primary mb-4'>Status Meja</h2>
-				<TableFilter
-					activeFilter={activeFilter}
-					setActiveFilter={setActiveFilter}
-					selectedFloor={selectedFloor}
-					setSelectedFloor={setSelectedFloor}
-					tables={tables}
+				{/* Real-time Detection Panel - show detection info for selected floor */}
+				{currentFloor && selectedFloor !== 'all' && (
+					<RealtimeDetection
+						floor={currentFloor}
+						tables={currentFloorTables}
+						canvasRef={canvasRef}
+						onDetectionUpdate={handleDetectionUpdate}
+					/>
+				)}
+
+				{/* CCTV di atas summary */}
+				<CctvPanel
+					key={refreshKey}
+					feedsByFloor={cctvFeedsByFloor}
+					floorOptions={cctvFloorOptions}
+					floorValue={cctvSelectedFloor}
+					onFloorChange={setCctvSelectedFloor}
+					onRefresh={loadCctvStreams}
+					isLoading={isLoadingCctv}
 					floors={floors}
-				/>{' '}
-				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5'>
-					{filteredTables.length > 0 ? (
-						filteredTables.map((table) => (
-							<TableCard
-								key={table.id}
-								table={table}
-								onStatusChange={onStatusChange}
-							/>
-						))
-					) : (
-						<div className='col-span-full flex items-center justify-center py-16'>
-							<div className='text-center'>
-								<div className='text-6xl mb-4 opacity-50'>📋</div>
-								<p className='text-gray-500 text-lg'>
-									Tidak ada meja yang sesuai dengan filter
-								</p>
+					tables={tables}
+				/>
+				<SummaryCards tables={tables} />
+
+				<div>
+					<h2 className='text-2xl font-bold text-primary mb-4'>Status Meja</h2>
+					<TableFilter
+						activeFilter={activeFilter}
+						setActiveFilter={setActiveFilter}
+						selectedFloor={selectedFloor}
+						setSelectedFloor={setSelectedFloor}
+						tables={tables}
+						floors={floors}
+					/>{' '}
+					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5'>
+						{filteredTables.length > 0 ? (
+							filteredTables.map((table) => (
+								<TableCard
+									key={table.id}
+									table={table}
+									onStatusChange={onStatusChange}
+								/>
+							))
+						) : (
+							<div className='col-span-full flex items-center justify-center py-16'>
+								<div className='text-center'>
+									<div className='text-6xl mb-4 opacity-50'>📋</div>
+									<p className='text-gray-500 text-lg'>
+										Tidak ada meja yang sesuai dengan filter
+									</p>
+								</div>
 							</div>
-						</div>
-					)}
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
+		</ResponsiveWrapper>
 	);
 };
 

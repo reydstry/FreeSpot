@@ -377,11 +377,10 @@ export default function App() {
 				/>
 			</div>
 
-			{/* Backend Connection Status Banner */}
 			{!isConnected && initialLoadDone && (
 				<div className='fixed top-0 left-0 right-0 bg-yellow-500 text-yellow-900 text-center py-2 px-4 z-40 flex items-center justify-center gap-3'>
 					<span className='font-medium'>
-						⚠️ Koneksi ke server terputus. Mencoba menghubungkan kembali...
+						Koneksi ke server terputus. Mencoba menghubungkan kembali...
 					</span>
 					<button
 						onClick={retry}
@@ -392,7 +391,6 @@ export default function App() {
 				</div>
 			)}
 
-			{/* Initial Loading - Waiting for Backend */}
 			{!initialLoadDone && (
 				<div className='fixed inset-0 bg-primary flex items-center justify-center z-50'>
 					<div className='bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 min-w-[280px]'>
@@ -418,7 +416,6 @@ export default function App() {
 				</div>
 			)}
 
-			{/* Global Loading Overlay */}
 			{isLoading && (
 				<div className='fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50'>
 					<div className='bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4 min-w-[200px]'>

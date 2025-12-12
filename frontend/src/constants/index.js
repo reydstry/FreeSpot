@@ -4,13 +4,13 @@ export const WS_INITIAL_RECONNECT_DELAY = 5000;
 export const WS_MAX_RECONNECT_DELAY = 60000;
 
 // Polling intervals
-export const TABLE_POLLING_INTERVAL = 2000; // 2 seconds
-export const WS_POLLING_INTERVAL = 100; // 100ms server polling
+export const TABLE_POLLING_INTERVAL = 2000;
+export const WS_POLLING_INTERVAL = 100;
 
 // Canvas & Animation
 export const CANVAS_DEFAULT_WIDTH = 1280;
 export const CANVAS_DEFAULT_HEIGHT = 720;
-export const CANVAS_FPS_THROTTLE = 66; // ~15fps (1000/15 ≈ 66ms)
+export const CANVAS_FPS_THROTTLE = 66;
 
 // Table overlay colors
 export const TABLE_COLORS = {
