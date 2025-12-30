@@ -1,8 +1,81 @@
+# Tata Cara Pemakaian Aplikasi
+
+Bagian ini menjelaskan langkah penggunaan FreeSpot dari sisi operasional (menjalankan layanan) dan dari sisi pengguna/admin (mengelola layout, CCTV, serta monitoring).
+
+### A. Prasyarat
+
+- Database: PostgreSQL aktif dan dapat diakses dari backend.
+- Backend: Python 3.11 (atau via container Docker backend).
+- ML API: Python (service deteksi di folder `ml_api`) aktif.
+- Frontend: Node.js (untuk menjalankan Vite).
+
+### B. Konfigurasi Environment
+
+- Frontend: set `VITE_API_BASE_URL` agar mengarah ke backend.
+  - Contoh pada `frontend/.env`:
+
+```bash
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+- Backend: set `DATABASE_URL` dan `ML_API_URL` sesuai environment Anda.
+  - Backend akan mengakses ML API untuk endpoint deteksi.
+  - Pastikan port/host sesuai konfigurasi runtime.
+
+### C. Menjalankan Layanan (Mode Development)
+
+1. Jalankan backend (port default 8000).
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+2. Jalankan ML API (port default 9000).
+
+```bash
+cd ml_api
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 9000
+```
+
+3. Jalankan frontend (Vite).
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### D. Alur Pemakaian di Aplikasi (Sudut Pandang Admin/Pengguna)
+
+1. Setup awal (Edit Layout)
+   - Buka halaman **Edit Layout**.
+   - Pilih lantai, lalu gambar area meja pada canvas (drag untuk membuat frame).
+   - Untuk koreksi, lakukan drag/resize/rotate pada meja yang sudah ada.
+   - Sistem menyimpan perubahan ke database; overlay frame di halaman Table akan mengikuti perubahan (real-time/event + polling saat Frames ON).
+
+2. Konfigurasi CCTV (Settings)
+   - Buka halaman **Settings**.
+   - Tambahkan/ubah URL CCTV untuk lantai yang dipilih (mendukung http/https/rtsp).
+   - Hapus feed jika diperlukan.
+
+3. Monitoring (Table)
+   - Buka halaman **Table** untuk melihat status meja dan CCTV live.
+   - Gunakan filter lantai/status untuk menyaring tampilan.
+   - Aktifkan **Frames ON** untuk menampilkan overlay frame meja di atas feed CCTV.
+
+4. Deteksi Real-time
+   - Pada halaman **Table**, pilih lantai (bukan “all”) agar panel deteksi muncul.
+   - Klik **Start Detection** untuk memulai proses deteksi.
+   - Sistem akan menerima pembaruan status meja melalui WebSocket; jika CCTV/ML API bermasalah, UI menampilkan status error/stopped sesuai kondisi.
+
 # Whitebox & Blackbox Testing (FreeSpot)
 
-Dokumen ini berisi rancangan pengujian **Whitebox** dan **Blackbox** untuk aplikasi FreeSpot, serta ringkasan temuan **fungsi/endpoint yang tidak terpakai** (berdasarkan pemakaian aktual di frontend).
+Dokumen ini berisi rancangan pengujian **Whitebox** dan **Blackbox** untuk aplikasi FreeSpot
 
----
+---  
 
 ## Whitebox Testing
 
