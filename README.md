@@ -48,7 +48,7 @@ npm install
 npm run dev
 ```
 
-### D. Alur Pemakaian di Aplikasi (Sudut Pandang Admin/Pengguna)
+### D. Alur Pemakaian di Aplikasi (Sudut Pandang Pengguna)
 
 1. Setup awal (Edit Layout)
    - Buka halaman **Edit Layout**.
