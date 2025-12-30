@@ -120,46 +120,6 @@ export const cctvAPI = {
 	},
 };
 
-export const detectionAPI = {
-	async start(floorId) {
-		const response = await fetch(`${API_BASE_URL}/detection/start/${floorId}`, {
-			method: 'POST',
-		});
-		if (!response.ok) throw new Error('Failed to start detection');
-		return response.json();
-	},
-
-	async stop(floorId) {
-		const response = await fetch(`${API_BASE_URL}/detection/stop/${floorId}`, {
-			method: 'POST',
-		});
-		if (!response.ok) throw new Error('Failed to stop detection');
-		return response.json();
-	},
-
-	async getStatus() {
-		const response = await fetch(`${API_BASE_URL}/detection/status`);
-		if (!response.ok) throw new Error('Failed to fetch detection status');
-		return response.json();
-	},
-
-	connectWebSocket(onMessage, floorId = null) {
-		// Convert HTTP(S) to WS(S) properly
-		let base = API_BASE_URL;
-		if (base.startsWith('https://')) {
-			base = base.replace('https://', 'wss://');
-		} else if (base.startsWith('http://')) {
-			base = base.replace('http://', 'ws://');
-		}
-		const wsUrl = floorId
-			? `${base}/ws/detect?floor_id=${floorId}`
-			: `${base}/ws/detect`;
-		const ws = new WebSocket(wsUrl);
-		ws.onmessage = (event) => onMessage(JSON.parse(event.data));
-		return ws;
-	},
-};
-
 export const healthAPI = {
 	async check() {
 		try {

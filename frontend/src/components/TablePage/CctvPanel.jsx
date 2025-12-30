@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Camera, RefreshCcw, Eye, EyeOff } from 'lucide-react';
 import CustomDropdown from './CustomDropdown';
 import { API_BASE_URL } from '../../services/api';
@@ -12,6 +12,7 @@ const CctvPanel = ({
 	floorValue = '1',
 	onFloorChange,
 	onRefresh,
+	isLoading = false,
 	floors = [],
 	tables = [],
 	onCctvStatusChange,
@@ -39,6 +40,9 @@ const CctvPanel = ({
 		height: CANVAS_DEFAULT_HEIGHT,
 	});
 
+	const [frameTables, setFrameTables] = useState([]);
+	const [framesRefreshToken, setFramesRefreshToken] = useState(0);
+
 	// Use stream status hook - now per floor
 	const {
 		streamErrors,
@@ -54,11 +58,64 @@ const CctvPanel = ({
 		refreshKey,
 	} = useStreamStatus(effectiveFeeds, floorValue);
 
-	// Get tables for current floor from props (real-time updated)
+	const fetchFramesForCurrentFloor = useCallback(async () => {
+		try {
+			const floorNum = parseInt(floorValue);
+			const floorObj = floors.find((f) => f.number === floorNum);
+			if (!floorObj) return;
+
+			const response = await fetch(
+				`${API_BASE_URL}/tables/with-frames/${floorObj.id}`
+			);
+			if (!response.ok) return;
+			const data = await response.json();
+
+			setCanvasSize({
+				width: data.canvas_width || CANVAS_DEFAULT_WIDTH,
+				height: data.canvas_height || CANVAS_DEFAULT_HEIGHT,
+			});
+
+			if (data.tables && Array.isArray(data.tables)) {
+				setFrameTables(data.tables);
+			} else {
+				setFrameTables([]);
+			}
+		} catch (error) {
+			console.error('Failed to fetch table frames:', error);
+		}
+	}, [floorValue, floors]);
+
+	const statusById = useMemo(() => {
+		const map = new Map();
+		for (const t of tables) map.set(t.id, t.status);
+		return map;
+	}, [tables]);
+
 	const tableFrames = useMemo(() => {
 		const floorNum = parseInt(floorValue);
-		return tables.filter((t) => t.floor === floorNum);
-	}, [tables, floorValue]);
+		const fallback = tables
+			.filter((t) => t.floor === floorNum)
+			.map((t) => {
+				const coords =
+					t.coords && !Array.isArray(t.coords) && typeof t.coords === 'object'
+						? [t.coords.x ?? 0, t.coords.y ?? 0]
+						: t.coords;
+				return { ...t, coords };
+			});
+		if (!frameTables || frameTables.length === 0) return fallback;
+
+		return frameTables.map((t) => {
+			const coords =
+				t.coords && !Array.isArray(t.coords) && typeof t.coords === 'object'
+					? [t.coords.x ?? 0, t.coords.y ?? 0]
+					: t.coords;
+			return {
+				...t,
+				coords,
+				status: statusById.get(t.id) ?? t.status,
+			};
+		});
+	}, [tables, floorValue, frameTables, statusById]);
 
 	// Use table overlay hook
 	const { overlayRefs } = useTableOverlay(
@@ -70,34 +127,36 @@ const CctvPanel = ({
 		streamErrors
 	);
 
-	// Fetch canvas size from server
 	useEffect(() => {
-		const fetchCanvasSize = async () => {
-			try {
-				const floorNum = parseInt(floorValue);
-				const floorObj = floors.find((f) => f.number === floorNum);
+		const handleTablesUpdated = () => setFramesRefreshToken((v) => v + 1);
+		window.addEventListener('tables-updated', handleTablesUpdated);
+		return () =>
+			window.removeEventListener('tables-updated', handleTablesUpdated);
+	}, []);
 
-				if (!floorObj) return;
-
-				const response = await fetch(
-					`${API_BASE_URL}/tables/with-frames/${floorObj.id}`
-				);
-				if (response.ok) {
-					const data = await response.json();
-					setCanvasSize({
-						width: data.canvas_width || CANVAS_DEFAULT_WIDTH,
-						height: data.canvas_height || CANVAS_DEFAULT_HEIGHT,
-					});
-				}
-			} catch (error) {
-				console.error('Failed to fetch canvas size:', error);
-			}
-		};
-
+	// Fetch canvas size + frames from server
+	useEffect(() => {
 		if (floorValue && floors.length > 0) {
-			fetchCanvasSize();
+			fetchFramesForCurrentFloor();
 		}
-	}, [floorValue, floors]);
+	}, [
+		floorValue,
+		floors.length,
+		framesRefreshToken,
+		fetchFramesForCurrentFloor,
+	]);
+
+	useEffect(() => {
+		if (!showTableOverlay) return;
+		if (!floorValue || floors.length === 0) return;
+
+		fetchFramesForCurrentFloor();
+		const intervalId = setInterval(() => {
+			fetchFramesForCurrentFloor();
+		}, 5000);
+
+		return () => clearInterval(intervalId);
+	}, [showTableOverlay, floorValue, floors.length, fetchFramesForCurrentFloor]);
 
 	// Check if online
 	const isOnline = hasFeed && hasLoadedStream;
@@ -105,6 +164,7 @@ const CctvPanel = ({
 	// Handle refresh - refresh current floor only
 	const handleRefresh = () => {
 		refreshCurrentFloor();
+		fetchFramesForCurrentFloor();
 		if (onRefresh) onRefresh();
 	};
 

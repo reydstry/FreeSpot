@@ -195,6 +195,7 @@ export default function App() {
 
 					console.log('✅ Table created successfully:', newTable);
 					setTables((prev) => [...prev, newTable]);
+					window.dispatchEvent(new Event('tables-updated'));
 					return newTable;
 				} else {
 					const newId =
@@ -205,6 +206,7 @@ export default function App() {
 						status: tableData.status || DEFAULT_TABLE_STATUS,
 					};
 					setTables((prev) => [...prev, newTable]);
+					window.dispatchEvent(new Event('tables-updated'));
 					return newTable;
 				}
 			} catch (error) {
@@ -226,6 +228,7 @@ export default function App() {
 					table.id === id ? { ...table, ...updates } : table
 				)
 			);
+			window.dispatchEvent(new Event('tables-updated'));
 
 			if (isConnected) {
 				const table = tables.find((t) => t.id === id);
@@ -242,6 +245,7 @@ export default function App() {
 
 						await tablesAPI.update(id, payload);
 						console.log('✅ Table updated in DB:', id);
+						window.dispatchEvent(new Event('tables-updated'));
 					} catch (err) {
 						console.error('❌ Failed to update table in DB:', err);
 					}
@@ -267,6 +271,7 @@ export default function App() {
 				if (isConnected) {
 					await tablesAPI.delete(id);
 				}
+				window.dispatchEvent(new Event('tables-updated'));
 			} catch (error) {
 				console.error('Failed to delete table:', error);
 			} finally {

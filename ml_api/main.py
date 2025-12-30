@@ -181,4 +181,4 @@ async def detect_base64(request: DetectBase64Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 7860)))
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 9000)))

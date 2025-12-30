@@ -39,7 +39,7 @@ class Table(Base):
     capacity = Column(Integer, nullable=False, default=1)
     status = Column(String(20), nullable=False, default="available")  # available, occupied, reserved
     
-    # Coordinates for detection zone [x_min, y_min, x_max, y_max] - JSONB type
+    # Coordinates for detection zone [x_min, y_min, x_max, y_max] - JSON type
     coords = Column(JSONB, nullable=True)
     
     # Dimensions (auto-calculated from coords)
